@@ -100,6 +100,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         settings: auth.can(principal, Capabilities.read_feature),
         ui: auth.can(principal, Capabilities.ui_access),
         users: auth.can(principal, Capabilities.read_users),
+        failover: config.failover !== undefined && auth.can(principal, Capabilities.read_network),
       },
       baseUrl: config.headscale.public_url ?? config.headscale.url,
       configAvailable: headscaleConfig.readable(),

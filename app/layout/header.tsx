@@ -3,6 +3,7 @@ import {
   CircleQuestionMark,
   CircleUser,
   Globe,
+  HeartPulse,
   Lock,
   Monitor,
   Moon,
@@ -36,6 +37,7 @@ export interface HeaderProps {
     users: boolean;
     policy: boolean;
     settings: boolean;
+    failover: boolean;
   };
   configAvailable: boolean;
 }
@@ -45,6 +47,7 @@ const tabs = [
   { to: "/users", icon: Users, label: "Users", key: "users" },
   { to: "/acls", icon: Lock, label: "Access Control", key: "policy" },
   { to: "/dns", icon: Globe, label: "DNS", key: "dns" },
+  { to: "/failover", icon: HeartPulse, label: "Failover", key: "failover" },
   { to: "/settings", icon: Settings, label: "Settings", key: "settings" },
 ] as const;
 
