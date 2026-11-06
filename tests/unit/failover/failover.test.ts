@@ -1,51 +1,41 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { readServers, requestTakeover, summarize } from "~/server/failover";
+import { type FailoverState, readServers, requestTakeover, summarize } from "~/server/failover";
 
 const config = {
   token: "s3cret",
   servers: [
-    { name: "RU", url: "http://100.64.0.110:8480" },
-    { name: "NL", url: "http://100.64.0.120:8480/" },
+    { name: "ru", url: "http://100.64.0.110:8480" },
+    { name: "nl", url: "http://100.64.0.120:8480/" },
   ],
 };
 
-const RU = "62.0.0.1";
-const NL = "157.0.0.1";
-
-function state(
-  selfIp: string,
-  activeIp: string,
-  active: number,
-  extra: {
-    serving?: number;
-    unseen?: number;
-    requested?: boolean;
-    lastAction?: string;
-    history?: { at: number; event: string }[];
-    vote?: { at: number; view: Record<string, { ok: boolean; fail_since: number | null }> } | null;
-  } = {},
-) {
+function state(name: string, extra: Partial<FailoverState> = {}): FailoverState {
   return {
-    self_ip: selfIp,
-    server_name: "mesh.example.com",
-    active_ip: activeIp,
-    last_action: extra.lastAction ?? (active ? "serve" : "standby"),
-    takeover_requested: extra.requested ?? false,
-    takeover_after: 300,
-    history: extra.history ?? [],
-    vote: extra.vote ?? null,
-    metrics: {
-      active,
-      serving: extra.serving ?? active,
-      active_unseen_seconds: extra.unseen ?? 0,
-      fenced: 0,
-      dns_ok: 1,
-      vote_age_seconds: 12,
-      replication_errors: 0,
-    },
+    name,
+    self_ip: `${name}-ip`,
+    candidate: true,
+    serving: false,
+    action: "standby",
+    leader: "ru",
+    term: 7,
+    desired: null,
+    lease_ok: true,
+    etcd_ok: true,
+    error: null,
+    members: [
+      { name: "ru", client: "https://100.64.0.110:2379" },
+      { name: "nl", client: "https://100.64.0.120:2379" },
+      { name: "pi", client: "https://100.64.0.50:2379" },
+    ],
+    queue: ["ru", "nl"],
+    snapshot: { term: 7, by: "ru", at: 900, bytes: 20000 },
+    history: [],
+    ...extra,
   };
 }
+
+const ruLeads = state("ru", { serving: true, action: "serve" });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -53,12 +43,10 @@ afterEach(() => {
 
 describe("readServers", () => {
   test("asks every server for its state with the token", async () => {
-    const fetch = vi.fn(async (url: string) => {
-      const body = url.includes("110")
-        ? state("62.0.0.1", "62.0.0.1", 1)
-        : state("157.0.0.1", "62.0.0.1", 0);
-      return new Response(JSON.stringify(body), { status: 200 });
-    });
+    const fetch = vi.fn(
+      async (url: string) =>
+        new Response(JSON.stringify(url.includes("110") ? ruLeads : state("nl")), { status: 200 }),
+    );
     vi.stubGlobal("fetch", fetch);
 
     const servers = await readServers(config);
@@ -67,9 +55,9 @@ describe("readServers", () => {
       "http://100.64.0.120:8480/state",
       expect.objectContaining({ headers: { Authorization: "Bearer s3cret" } }),
     );
-    expect(servers.map((s) => [s.name, s.state?.metrics.active])).toEqual([
-      ["RU", 1],
-      ["NL", 0],
+    expect(servers.map((s) => [s.name, s.state?.serving])).toEqual([
+      ["ru", true],
+      ["nl", false],
     ]);
   });
 
@@ -80,164 +68,76 @@ describe("readServers", () => {
         if (url.includes("120")) {
           throw new Error("connect ETIMEDOUT");
         }
-        return new Response(JSON.stringify(state("62.0.0.1", "62.0.0.1", 1)), { status: 200 });
+        return new Response(JSON.stringify(ruLeads), { status: 200 });
       }),
     );
 
-    const servers = await readServers(config);
-
-    expect(servers[1]).toEqual({ name: "NL", error: "connect ETIMEDOUT" });
-  });
-
-  test("reports a rejected token", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("{}", { status: 401 })),
-    );
-
-    const servers = await readServers(config);
-
-    expect(servers[0]).toEqual({ name: "RU", error: "HTTP 401" });
+    expect((await readServers(config))[1]).toEqual({ name: "nl", error: "connect ETIMEDOUT" });
   });
 });
 
 describe("summarize", () => {
-  test("the server the name points at and that serves leads", () => {
+  test("the elected leader that serves leads", () => {
     const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1) },
-      { name: "NL", state: state(NL, RU, 0) },
+      { name: "ru", state: ruLeads },
+      { name: "nl", state: state("nl") },
     ]);
-    expect(summary).toMatchObject({ phase: "leading", leader: "RU", dnsTarget: "RU" });
+    expect(summary).toMatchObject({ phase: "leading", leader: "ru", term: 7, serving: ["ru"] });
+    expect(summary.members).toEqual(["ru", "nl", "pi"]);
   });
 
-  test("a requested takeover is a switch to the requested server", () => {
+  test("a manual request is a switch until it is served", () => {
     const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1) },
-      { name: "NL", state: state(NL, RU, 0, { requested: true }) },
+      { name: "ru", state: { ...ruLeads, desired: "nl" } },
+      { name: "nl", state: state("nl", { desired: "nl" }) },
     ]);
-    expect(summary).toMatchObject({ phase: "switching", leader: "RU", requested: "NL" });
+    expect(summary).toMatchObject({ phase: "switching", requested: "nl" });
   });
 
-  test("a takeover still restoring the database is a switch, not a free server", () => {
+  test("an elected leader still restoring is a switch", () => {
     const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1) },
-      { name: "NL", state: state(NL, NL, 1, { serving: 0, lastAction: "takeover" }) },
+      { name: "ru", state: state("ru", { leader: "nl" }) },
+      { name: "nl", state: state("nl", { leader: "nl", action: "taking over" }) },
     ]);
-    expect(summary).toMatchObject({ phase: "switching", leader: "RU", requested: "NL" });
+    expect(summary).toMatchObject({ phase: "switching", leader: "nl", serving: [] });
   });
 
-  test("the name moved but the old server still serves: switching", () => {
-    const summary = summarize([
-      { name: "RU", state: state(RU, NL, 0, { serving: 1 }) },
-      { name: "NL", state: state(NL, NL, 1, { serving: 0 }) },
-    ]);
-    expect(summary).toMatchObject({ phase: "switching", leader: "RU", dnsTarget: "NL" });
+  test("an empty queue is no leader", () => {
+    const summary = summarize([{ name: "ru", state: state("ru", { leader: null, queue: [] }) }]);
+    expect(summary.phase).toBe("no_leader");
   });
 
-  test("nobody serves: no leader, the name says who should", () => {
+  test("two serving is a split", () => {
     const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1, { serving: 0 }) },
-      { name: "NL", state: state(NL, RU, 0) },
-    ]);
-    expect(summary).toMatchObject({ phase: "no_leader", dnsTarget: "RU" });
-    expect(summary.leader).toBeUndefined();
-  });
-
-  test("two servers serving is a split", () => {
-    const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1) },
-      { name: "NL", state: state(NL, NL, 1) },
+      { name: "ru", state: ruLeads },
+      { name: "nl", state: state("nl", { serving: true }) },
     ]);
     expect(summary.phase).toBe("split");
   });
 
-  test("goes by any reachable server when the active one is down", () => {
+  test("goes by a server that holds its lease", () => {
     const summary = summarize([
-      { name: "RU", error: "connect ETIMEDOUT" },
-      { name: "NL", state: state(NL, RU, 0, { unseen: 120 }) },
+      { name: "ru", state: state("ru", { lease_ok: false, etcd_ok: false, leader: null }) },
+      { name: "nl", state: state("nl", { leader: "nl", serving: true, term: 9 }) },
     ]);
-    expect(summary).toMatchObject({ phase: "no_leader", activeIp: RU });
-    expect(summary.dnsTarget).toBeUndefined();
-    expect(summary.countdown).toEqual({ server: "NL", unseen: 120, after: 300 });
+    expect(summary).toMatchObject({ phase: "leading", leader: "nl", term: 9 });
   });
 
-  test("no countdown while the standby still sees the active", () => {
+  test("nobody in the quorum is unknown", () => {
     const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1) },
-      { name: "NL", state: state(NL, RU, 0, { unseen: 30 }) },
+      { name: "ru", state: state("ru", { lease_ok: false }) },
+      { name: "nl", error: "x" },
     ]);
-    expect(summary.countdown).toBeUndefined();
+    expect(summary.phase).toBe("unknown");
   });
 
-  test("merges both histories, newest first", () => {
-    const summary = summarize([
-      {
-        name: "RU",
-        state: state(RU, RU, 1, {
-          history: [
-            { at: 100, event: "stopped" },
-            { at: 300, event: "took over" },
-          ],
-        }),
-      },
-      { name: "NL", state: state(NL, RU, 0, { history: [{ at: 200, event: "took over" }] }) },
-    ]);
-    expect(summary.history).toEqual([
-      { at: 300, server: "RU", event: "took over" },
-      { at: 200, server: "NL", event: "took over" },
-      { at: 100, server: "RU", event: "stopped" },
-    ]);
-  });
-
-  test("takes the witness's newest vote and names the servers in it", () => {
-    const summary = summarize([
-      {
-        name: "RU",
-        state: state(RU, RU, 1, {
-          vote: { at: 900, view: { [RU]: { ok: true, fail_since: null } } },
-        }),
-      },
-      {
-        name: "NL",
-        state: state(NL, RU, 0, {
-          vote: {
-            at: 960,
-            view: { [RU]: { ok: false, fail_since: 930 }, [NL]: { ok: true, fail_since: null } },
-          },
-        }),
-      },
-    ]);
-    expect(summary.witness).toEqual({
-      at: 960,
-      view: [
-        { server: "RU", ok: false, failSince: 930, standby: false },
-        { server: "NL", ok: true, failSince: null, standby: true },
-      ],
-    });
-  });
-
-  test("a stopped standby the witness cannot reach is a standby, not an outage", () => {
-    const vote = {
-      at: 960,
-      view: { [RU]: { ok: true, fail_since: null }, [NL]: { ok: false, fail_since: 100 } },
-    };
-    const summary = summarize([
-      { name: "RU", state: state(RU, RU, 1, { vote }) },
-      { name: "NL", state: state(NL, RU, 0, { vote }) },
-    ]);
-    expect(summary.witness?.view).toEqual([
-      { server: "RU", ok: true, failSince: null, standby: false },
-      { server: "NL", ok: false, failSince: 100, standby: true },
-    ]);
-  });
-
-  test("no witness without a vote", () => {
-    const summary = summarize([{ name: "RU", state: state(RU, RU, 1) }]);
-    expect(summary.witness).toBeUndefined();
-  });
-
-  test("nothing reachable is unknown", () => {
-    expect(summarize([{ name: "RU", error: "x" }]).phase).toBe("unknown");
+  test("history newest first", () => {
+    const history = [
+      { at: 100, server: "ru", event: "became leader (term 5)" },
+      { at: 300, server: "nl", event: "became leader (term 9)" },
+    ];
+    const summary = summarize([{ name: "ru", state: { ...ruLeads, history } }]);
+    expect(summary.history.map((h) => h.at)).toEqual([300, 100]);
   });
 });
 
@@ -246,7 +146,7 @@ describe("requestTakeover", () => {
     const fetch = vi.fn(async () => new Response('{"takeover_requested": true}', { status: 202 }));
     vi.stubGlobal("fetch", fetch);
 
-    await requestTakeover(config, "NL");
+    await requestTakeover(config, "nl");
 
     expect(fetch).toHaveBeenCalledWith(
       "http://100.64.0.120:8480/takeover",
@@ -255,14 +155,14 @@ describe("requestTakeover", () => {
   });
 
   test("refuses an unknown server", async () => {
-    await expect(requestTakeover(config, "DE")).rejects.toThrow("Unknown server DE");
+    await expect(requestTakeover(config, "de")).rejects.toThrow("Unknown server de");
   });
 
   test("fails when the server refuses", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response("{}", { status: 401 })),
+      vi.fn(async () => new Response("{}", { status: 503 })),
     );
-    await expect(requestTakeover(config, "RU")).rejects.toThrow("HTTP 401");
+    await expect(requestTakeover(config, "ru")).rejects.toThrow("HTTP 503");
   });
 });

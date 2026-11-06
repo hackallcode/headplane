@@ -5,31 +5,35 @@ export interface FailoverConfig {
 }
 
 export interface FailoverState {
+  name: string;
   self_ip: string;
-  server_name: string;
-  active_ip: string | null;
-  last_action?: string | null;
-  takeover_requested: boolean;
-  takeover_after?: number;
-  metrics: Record<string, number>;
-  history?: { at: number; event: string }[];
-  vote?: { at: number; view: Record<string, { ok: boolean; fail_since: number | null }> } | null;
+  candidate: boolean;
+  serving: boolean;
+  action: string;
+  leader: string | null;
+  term: number | null;
+  desired: string | null;
+  lease_ok: boolean;
+  etcd_ok: boolean;
+  error: string | null;
+  members: { name: string; client: string | null }[];
+  queue: string[];
+  snapshot: { term: number; by: string; at: number; bytes: number } | null;
+  history: { at: number; server: string; event: string }[];
 }
 
 export type FailoverPhase = "leading" | "switching" | "no_leader" | "split" | "unknown";
 
 export interface FailoverSummary {
   phase: FailoverPhase;
-  activeIp?: string;
-  dnsTarget?: string;
   leader?: string;
+  serving: string[];
   requested?: string;
-  countdown?: { server: string; unseen: number; after: number };
-  history: { at: number; server: string; event: string }[];
-  witness?: {
-    at: number;
-    view: { server: string; ok: boolean; failSince: number | null; standby: boolean }[];
-  };
+  term?: number;
+  queue: string[];
+  members: string[];
+  snapshot?: FailoverState["snapshot"];
+  history: FailoverState["history"];
 }
 
 export type FailoverServer =
@@ -37,7 +41,6 @@ export type FailoverServer =
   | { name: string; error: string; state?: undefined };
 
 const TIMEOUT_MS = 4000;
-const COUNTDOWN_AFTER_S = 60;
 const HISTORY_SHOWN = 20;
 
 function endpoint(url: string, path: string) {
@@ -72,66 +75,35 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
   const reachable = servers.filter(
     (s): s is Extract<FailoverServer, { state: FailoverState }> => s.state !== undefined,
   );
-  const activeIp = reachable.find((s) => s.state.active_ip)?.state.active_ip ?? undefined;
-  const dnsTarget = reachable.find((s) => s.state.self_ip === activeIp)?.name;
-  const serving = reachable.filter((s) => s.state.metrics.serving === 1).map((s) => s.name);
-  const leader = serving.length === 1 ? serving[0] : undefined;
-  const requested = reachable.find(
-    (s) =>
-      s.state.takeover_requested ||
-      (s.state.last_action === "takeover" && s.state.metrics.serving !== 1),
-  )?.name;
-
-  const standby = reachable.find(
-    (s) => s.name !== leader && (s.state.metrics.active_unseen_seconds ?? 0) >= COUNTDOWN_AFTER_S,
-  );
-  const countdown = standby
-    ? {
-        server: standby.name,
-        unseen: standby.state.metrics.active_unseen_seconds,
-        after: standby.state.takeover_after ?? 0,
-      }
-    : undefined;
-
-  const history = reachable
-    .flatMap((s) =>
-      (s.state.history ?? []).map((h) => ({ at: h.at, server: s.name, event: h.event })),
-    )
-    .sort((a, b) => b.at - a.at)
-    .slice(0, HISTORY_SHOWN);
-
-  const vote = reachable
-    .map((s) => s.state.vote)
-    .filter((v): v is NonNullable<FailoverState["vote"]> => Boolean(v))
-    .sort((a, b) => b.at - a.at)[0];
-  const witness = vote
-    ? {
-        at: vote.at,
-        view: reachable
-          .filter((s) => vote.view[s.state.self_ip])
-          .map((s) => ({
-            server: s.name,
-            ok: vote.view[s.state.self_ip].ok,
-            failSince: vote.view[s.state.self_ip].fail_since,
-            standby: s.name !== leader && s.state.metrics.serving !== 1,
-          })),
-      }
-    : undefined;
+  const view = reachable.find((s) => s.state.etcd_ok && s.state.lease_ok)?.state;
+  const serving = reachable.filter((s) => s.state.serving).map((s) => s.name);
+  const leader = view?.leader ?? undefined;
+  const requested = view?.desired ?? undefined;
 
   let phase: FailoverPhase;
-  if (reachable.length === 0) {
+  if (!view) {
     phase = "unknown";
   } else if (serving.length > 1) {
     phase = "split";
-  } else if (requested || (leader && dnsTarget && leader !== dnsTarget)) {
-    phase = "switching";
-  } else if (leader) {
-    phase = "leading";
-  } else {
+  } else if (!leader) {
     phase = "no_leader";
+  } else if (requested || !serving.includes(leader)) {
+    phase = "switching";
+  } else {
+    phase = "leading";
   }
 
-  return { phase, activeIp, dnsTarget, leader, requested, countdown, history, witness };
+  return {
+    phase,
+    leader,
+    serving,
+    requested,
+    term: view?.term ?? undefined,
+    queue: view?.queue ?? [],
+    members: (view?.members ?? []).map((m) => m.name),
+    snapshot: view?.snapshot ?? undefined,
+    history: [...(view?.history ?? [])].sort((a, b) => b.at - a.at).slice(0, HISTORY_SHOWN),
+  };
 }
 
 export async function requestTakeover(config: FailoverConfig, name: string) {
