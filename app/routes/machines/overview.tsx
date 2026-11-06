@@ -45,7 +45,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const principal = await auth.require(request);
 
-  if (!auth.can(principal, Capabilities.read_machines)) {
+  if (
+    !auth.can(principal, Capabilities.read_machines) &&
+    !auth.can(principal, Capabilities.read_own_machines)
+  ) {
     throw new Error(
       "You do not have permission to view this page. Please contact your administrator.",
     );
@@ -58,8 +61,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     headscaleLiveStore.get(nodesResource, api),
     headscaleLiveStore.get(usersResource, api),
   ]);
-  const nodes = nodesSnap.data;
-  const users = usersSnap.data;
+  const nodes = auth.visibleNodes(principal, nodesSnap.data);
+  const users = auth.can(principal, Capabilities.read_users)
+    ? usersSnap.data
+    : usersSnap.data.filter(
+        (u) => isUserPrincipal(principal) && u.id === principal.user.headscaleUserId,
+      );
 
   const magic = headscaleConfig.getMagicDNSBaseDomain();
 
@@ -463,6 +470,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                       ? false // If the user has write permissions, they can edit all machines
                       : node.user?.id !== loaderData.headscaleUserId
                   }
+                  ownerOnly={!loaderData.writable}
                   key={node.id}
                   magic={loaderData.magic}
                   node={node}

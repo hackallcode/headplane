@@ -18,6 +18,7 @@ import {
   requestApiContext,
 } from "~/server/context";
 import { nodesResource, usersResource } from "~/server/headscale/live-store";
+import { isUserPrincipal } from "~/server/web/auth";
 import { Capabilities } from "~/server/web/roles";
 import cn from "~/utils/cn";
 import { getOSInfo, getTSVersion } from "~/utils/host-info";
@@ -48,7 +49,10 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 
   const principal = await auth.require(request);
 
-  if (!auth.can(principal, Capabilities.read_machines)) {
+  if (
+    !auth.can(principal, Capabilities.read_machines) &&
+    !auth.can(principal, Capabilities.read_own_machines)
+  ) {
     throw new Error(
       "You do not have permission to view this page. Please contact your administrator.",
     );
@@ -61,8 +65,12 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     headscaleLiveStore.get(nodesResource, api),
     headscaleLiveStore.get(usersResource, api),
   ]);
-  const nodes = nodesSnap.data;
-  const users = usersSnap.data;
+  const nodes = auth.visibleNodes(principal, nodesSnap.data);
+  const users = auth.can(principal, Capabilities.read_users)
+    ? usersSnap.data
+    : usersSnap.data.filter(
+        (u) => isUserPrincipal(principal) && u.id === principal.user.headscaleUserId,
+      );
   const node = nodes.find((node) => node.id === params.id);
   if (node == null) {
     throw data(null, { status: 404 });
@@ -99,6 +107,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     supportsDisablingKeyExpiry: supportsDisablingKeyExpiry,
     tags,
     users,
+    writable: auth.can(principal, Capabilities.write_machines),
   };
 }
 
@@ -116,6 +125,7 @@ export default function Page({
     policyTags,
     supportsNodeOwnerChange,
     supportsDisablingKeyExpiry,
+    writable,
   },
 }: Route.ComponentProps) {
   const [showRouting, setShowRouting] = useState(false);
@@ -148,6 +158,7 @@ export default function Page({
           existingTags={existingTags}
           policyTags={policyTags}
           isFullButton
+          ownerOnly={!writable}
           magic={magic}
           node={node}
           users={users}

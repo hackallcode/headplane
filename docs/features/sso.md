@@ -212,15 +212,16 @@ determine what each user can do in the UI.
 
 ### Available Roles
 
-| Role              | Description                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| **Owner**         | Full access to everything. Cannot be reassigned. Automatically granted to the first user who signs in. |
-| **Admin**         | Full access except the owner-specific flag. Can manage all users, machines, ACLs, DNS, and settings.   |
-| **Network Admin** | Can manage ACLs, DNS, and network settings. Can view machines and users. Can generate pre-auth keys.   |
-| **IT Admin**      | Can manage machines, users, and feature settings. Can configure IAM. Cannot modify ACLs or DNS.        |
-| **Auditor**       | Read-only access to everything. Can generate their own pre-auth keys.                                  |
-| **Viewer**        | Can view machines and users. Can generate their own pre-auth keys.                                     |
-| **Member**        | No UI access. The user exists in Headplane's database but has not been granted any permissions.        |
+| Role              | Description                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Owner**         | Full access to everything. Cannot be reassigned. Automatically granted to the first user who signs in.                    |
+| **Admin**         | Full access except the owner-specific flag. Can manage all users, machines, ACLs, DNS, and settings.                      |
+| **Network Admin** | Can manage ACLs, DNS, and network settings. Can view machines and users. Can generate pre-auth keys.                      |
+| **IT Admin**      | Can manage machines, users, and feature settings. Can configure IAM. Cannot modify ACLs or DNS.                           |
+| **Auditor**       | Read-only access to everything. Can generate their own pre-auth keys.                                                     |
+| **Viewer**        | Can view machines and users. Can generate their own pre-auth keys.                                                        |
+| **User**          | Can view, rename, expire and remove their own machines and generate their own pre-auth keys; sees nothing of anyone else. |
+| **Member**        | No UI access. The user exists in Headplane's database but has not been granted any permissions.                           |
 
 ### First Login (Owner Bootstrap)
 
