@@ -72,6 +72,10 @@ export default function MachineRow({
           <p className="text-sm opacity-50">
             {node.user ? getUserDisplayName(node.user) : "Tag-owned"}
           </p>
+          <p className="flex items-center gap-x-1 text-sm opacity-70 sm:hidden">
+            <StatusCircle className="h-3 w-3" isOnline={node.online && !node.expired} />
+            {node.ipAddresses[0]}
+          </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {mapTagsToComponents(node, uiTags)}
             {node.tags?.map((tag) => (
@@ -80,7 +84,7 @@ export default function MachineRow({
           </div>
         </Link>
       </td>
-      <td className="py-2">
+      <td className="py-2 max-sm:hidden">
         <div className="flex items-center gap-x-1">
           {node.ipAddresses[0]}
           <Menu>
@@ -114,7 +118,7 @@ export default function MachineRow({
       </td>
       {/* We pass undefined when agents are not enabled */}
       {isAgent !== undefined ? (
-        <td className="py-2">
+        <td className="py-2 max-sm:hidden">
           {node.hostInfo !== undefined ? (
             <>
               <p className="leading-snug">{hinfo.getTSVersion(node.hostInfo)}</p>
@@ -127,7 +131,7 @@ export default function MachineRow({
           )}
         </td>
       ) : undefined}
-      <td className="py-2">
+      <td className="py-2 max-sm:hidden">
         <div className="flex items-start gap-x-1">
           <StatusCircle className="mt-0.5 h-4 w-4" isOnline={node.online && !node.expired} />
           <div>
