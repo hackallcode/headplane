@@ -83,7 +83,7 @@ describe("summarize", () => {
       { name: "nl", state: state("nl") },
     ]);
     expect(summary).toMatchObject({ phase: "leading", leader: "ru", term: 7, serving: ["ru"] });
-    expect(summary.members).toEqual(["ru", "nl", "pi"]);
+    expect(summary.members.map((m) => m.name)).toEqual(["ru", "nl", "pi"]);
   });
 
   test("a manual request is a switch until it is served", () => {

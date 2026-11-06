@@ -116,8 +116,8 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center">
-      <div>
+    <div className="flex min-h-dvh w-full items-center justify-center p-4">
+      <div className="w-full max-w-md">
         {urlState?.startsWith("error_") ? (
           <OidcErrorNotice code={urlState} />
         ) : oidcErrorCodes.includes("discovery_failed") ? (
@@ -125,7 +125,7 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
         ) : oidcErrorCodes.length > 0 ? (
           <OidcConfigErrorNotice errors={oidcErrorCodes} />
         ) : showCookieWarning ? (
-          <Card className="m-4 mb-4 max-w-md border border-red-500 sm:m-0 sm:mb-4">
+          <Card className="mb-4 w-full border border-red-500">
             <div className="flex items-center justify-between gap-4">
               <Card.Title className="text-red-500">Configuration Issue</Card.Title>
               <AlertCircle className="mb-2 h-6 w-6 text-red-500" />
@@ -145,40 +145,66 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
             ) : undefined}
           </Card>
         ) : undefined}
-        <Card className="m-4 max-w-md sm:m-0">
+        <Card className="w-full">
           <Card.Title>Welcome to Headplane</Card.Title>
-          <Form method="POST">
-            <Card.Text>
-              Enter an API key to authenticate with Headplane. You can generate one by running{" "}
-              <Code>headscale apikeys create</Code> in your terminal.
-            </Card.Text>
-            <Input
-              className="mt-8 mb-2"
-              required
-              label="API Key"
-              labelHidden
-              name="api_key"
-              placeholder="API Key"
-              type="password"
-            />
-            {actionData?.success === false ? (
-              <Card.Text className="mb-2 text-sm text-red-600 dark:text-red-300">
-                {actionData.message}
-              </Card.Text>
-            ) : undefined}
-            <Button className="w-full" type="submit" variant="heavy">
-              Sign In
-            </Button>
-          </Form>
           {isOidcConnectorEnabled ? (
-            <RouterLink to="/oidc/start" prefetch="none" reloadDocument>
-              <Button className="mt-2 w-full" disabled={oidcErrorCodes.length > 0} variant="light">
-                Single Sign-On
-              </Button>
-            </RouterLink>
-          ) : undefined}
+            <>
+              <Card.Text>Sign in with your account.</Card.Text>
+              <RouterLink to="/oidc/start" prefetch="none" reloadDocument>
+                <Button
+                  className="mt-6 w-full"
+                  disabled={oidcErrorCodes.length > 0}
+                  variant="heavy"
+                >
+                  Single Sign-On
+                </Button>
+              </RouterLink>
+              <details className="mt-6" open={actionData?.success === false}>
+                <summary className="cursor-pointer text-sm text-mist-600 dark:text-mist-300">
+                  Sign in with an API key instead
+                </summary>
+                <ApiKeyForm actionData={actionData} />
+              </details>
+            </>
+          ) : (
+            <ApiKeyForm actionData={actionData} primary />
+          )}
         </Card>
       </div>
     </div>
+  );
+}
+
+function ApiKeyForm({
+  actionData,
+  primary,
+}: {
+  actionData: Route.ComponentProps["actionData"];
+  primary?: boolean;
+}) {
+  return (
+    <Form method="POST">
+      <Card.Text className={primary ? undefined : "mt-3 text-sm"}>
+        Enter an API key to authenticate with Headplane. You can generate one by running{" "}
+        <Code className="break-all">headscale apikeys create</Code> in your terminal.
+      </Card.Text>
+      <Input
+        className="mt-4 mb-2"
+        required
+        label="API Key"
+        labelHidden
+        name="api_key"
+        placeholder="API Key"
+        type="password"
+      />
+      {actionData?.success === false ? (
+        <Card.Text className="mb-2 text-sm text-red-600 dark:text-red-300">
+          {actionData.message}
+        </Card.Text>
+      ) : undefined}
+      <Button className="w-full" type="submit" variant={primary ? "heavy" : "light"}>
+        Sign In
+      </Button>
+    </Form>
   );
 }

@@ -201,7 +201,18 @@ function EtcdCard({ summary, now }: { summary: FailoverSummary; now: number }) {
         <Chip text={summary.term ? `term ${summary.term}` : "no term"} />
       </div>
       <div className="flex flex-col gap-1">
-        <Fact label="Members" value={summary.members.join(", ") || "unknown"} />
+        {summary.members.length ? (
+          summary.members.map((member) => (
+            <div key={member.name} className="flex items-center gap-2">
+              <StatusCircle isOnline={member.ok !== false} className="h-3 w-3" />
+              <Text>{member.name}</Text>
+              {member.raft_leader ? <Chip text="raft leader" /> : undefined}
+              {member.ok === false ? <Badge text="not answering" tone="bad" /> : undefined}
+            </div>
+          ))
+        ) : (
+          <Fact label="Members" value="unknown" bad />
+        )}
         <Fact
           label="Queue"
           value={summary.queue.join(" → ") || "empty"}

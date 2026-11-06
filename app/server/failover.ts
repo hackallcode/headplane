@@ -16,10 +16,17 @@ export interface FailoverState {
   lease_ok: boolean;
   etcd_ok: boolean;
   error: string | null;
-  members: { name: string; client: string | null }[];
+  members: EtcdMember[];
   queue: string[];
   snapshot: { term: number; by: string; at: number; bytes: number } | null;
   history: { at: number; server: string; event: string }[];
+}
+
+export interface EtcdMember {
+  name: string;
+  client: string | null;
+  ok?: boolean;
+  raft_leader?: boolean;
 }
 
 export type FailoverPhase = "leading" | "switching" | "no_leader" | "split" | "unknown";
@@ -31,7 +38,7 @@ export interface FailoverSummary {
   requested?: string;
   term?: number;
   queue: string[];
-  members: string[];
+  members: EtcdMember[];
   snapshot?: FailoverState["snapshot"];
   history: FailoverState["history"];
 }
@@ -100,7 +107,7 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
     requested,
     term: view?.term ?? undefined,
     queue: view?.queue ?? [],
-    members: (view?.members ?? []).map((m) => m.name),
+    members: view?.members ?? [],
     snapshot: view?.snapshot ?? undefined,
     history: [...(view?.history ?? [])].sort((a, b) => b.at - a.at).slice(0, HISTORY_SHOWN),
   };
