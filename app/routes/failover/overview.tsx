@@ -165,9 +165,11 @@ function WitnessCard({
               value={
                 v.ok
                   ? "up"
-                  : `down for ${v.failSince ? Math.max(0, Math.round(now - v.failSince)) : "?"} s`
+                  : v.standby
+                    ? "standby (headscale stopped)"
+                    : `down for ${v.failSince ? Math.max(0, Math.round(now - v.failSince)) : "?"} s`
               }
-              bad={!v.ok}
+              bad={!v.ok && !v.standby}
             />
           ))}
         </div>

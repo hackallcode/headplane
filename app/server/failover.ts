@@ -26,7 +26,10 @@ export interface FailoverSummary {
   requested?: string;
   countdown?: { server: string; unseen: number; after: number };
   history: { at: number; server: string; event: string }[];
-  witness?: { at: number; view: { server: string; ok: boolean; failSince: number | null }[] };
+  witness?: {
+    at: number;
+    view: { server: string; ok: boolean; failSince: number | null; standby: boolean }[];
+  };
 }
 
 export type FailoverServer =
@@ -110,6 +113,7 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
             server: s.name,
             ok: vote.view[s.state.self_ip].ok,
             failSince: vote.view[s.state.self_ip].fail_since,
+            standby: s.name !== leader && s.state.metrics.serving !== 1,
           })),
       }
     : undefined;

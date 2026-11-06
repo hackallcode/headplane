@@ -210,10 +210,25 @@ describe("summarize", () => {
     expect(summary.witness).toEqual({
       at: 960,
       view: [
-        { server: "RU", ok: false, failSince: 930 },
-        { server: "NL", ok: true, failSince: null },
+        { server: "RU", ok: false, failSince: 930, standby: false },
+        { server: "NL", ok: true, failSince: null, standby: true },
       ],
     });
+  });
+
+  test("a stopped standby the witness cannot reach is a standby, not an outage", () => {
+    const vote = {
+      at: 960,
+      view: { [RU]: { ok: true, fail_since: null }, [NL]: { ok: false, fail_since: 100 } },
+    };
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1, { vote }) },
+      { name: "NL", state: state(NL, RU, 0, { vote }) },
+    ]);
+    expect(summary.witness?.view).toEqual([
+      { server: "RU", ok: true, failSince: null, standby: false },
+      { server: "NL", ok: false, failSince: 100, standby: true },
+    ]);
   });
 
   test("no witness without a vote", () => {
