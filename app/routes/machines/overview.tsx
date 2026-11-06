@@ -18,6 +18,7 @@ import {
 } from "~/server/context";
 import { nodesResource, usersResource } from "~/server/headscale/live-store";
 import { isUserPrincipal } from "~/server/web/auth";
+import { addDeviceOptions } from "~/server/web/ownership";
 import { Capabilities } from "~/server/web/roles";
 import cn from "~/utils/cn";
 import {
@@ -97,7 +98,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     magic,
     nodes,
     populatedNodes,
-    preAuth: auth.can(principal, Capabilities.generate_authkeys),
+    addDevice: addDeviceOptions({
+      writable: writablePermission,
+      anyKeys: auth.can(principal, Capabilities.generate_authkeys),
+      ownKeys: auth.can(principal, Capabilities.generate_own_authkeys),
+      linked: isUserPrincipal(principal) && principal.user.headscaleUserId !== undefined,
+    }),
     publicServer: config.headscale.public_url,
     server: config.headscale.url,
     supportsNodeOwnerChange: supportsNodeOwnerChange,
@@ -258,8 +264,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
         <NewMachine
-          disabledKeys={loaderData.preAuth ? [] : ["pre-auth"]}
-          isDisabled={!loaderData.writable}
+          disabledKeys={[
+            ...(loaderData.addDevice.register ? [] : ["register"]),
+            ...(loaderData.addDevice.preAuth ? [] : ["pre-auth"]),
+          ]}
+          isDisabled={loaderData.addDevice.disabled}
           server={loaderData.publicServer ?? loaderData.server}
           users={loaderData.users}
         />

@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import type { Principal } from "~/server/web/auth";
-import { ownedKeys, ownerMayRun } from "~/server/web/ownership";
+import { addDeviceOptions, ownedKeys, ownerMayRun } from "~/server/web/ownership";
 import { Capabilities, hasCapability } from "~/server/web/roles";
 import type { Machine, PreAuthKey } from "~/types";
 
@@ -114,5 +114,43 @@ describe("ownedKeys", () => {
 
   test("keeps nothing without a linked headscale user", () => {
     expect(ownedKeys(keys, undefined)).toEqual([]);
+  });
+});
+
+describe("addDeviceOptions", () => {
+  test("an admin may register keys and generate any pre-auth key", () => {
+    expect(
+      addDeviceOptions({ writable: true, anyKeys: true, ownKeys: true, linked: true }),
+    ).toEqual({
+      disabled: false,
+      register: true,
+      preAuth: true,
+    });
+  });
+
+  test("a linked user may generate a pre-auth key for itself only", () => {
+    expect(
+      addDeviceOptions({ writable: false, anyKeys: false, ownKeys: true, linked: true }),
+    ).toEqual({
+      disabled: false,
+      register: false,
+      preAuth: true,
+    });
+  });
+
+  test("a user without a device yet can only log in from one", () => {
+    expect(
+      addDeviceOptions({ writable: false, anyKeys: false, ownKeys: true, linked: false }),
+    ).toEqual({
+      disabled: false,
+      register: false,
+      preAuth: false,
+    });
+  });
+
+  test("without any of it the button is off", () => {
+    expect(
+      addDeviceOptions({ writable: false, anyKeys: false, ownKeys: false, linked: true }).disabled,
+    ).toBe(true);
   });
 });

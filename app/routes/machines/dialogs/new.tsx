@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { Computer, FileKey2 } from "lucide-react";
+import { Computer, FileKey2, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -29,6 +29,7 @@ export interface NewMachineProps {
 
 export default function NewMachine(data: NewMachineProps) {
   const [pushDialog, setPushDialog] = useState(false);
+  const [loginDialog, setLoginDialog] = useState(false);
   const form = useForm({
     schema: registerSchema,
     validate: (values) =>
@@ -43,6 +44,20 @@ export default function NewMachine(data: NewMachineProps) {
 
   return (
     <>
+      <Dialog isOpen={loginDialog} onOpenChange={setLoginDialog}>
+        <DialogPanel variant="unactionable">
+          <Title>Log in from the device</Title>
+          <Text>
+            Install Tailscale on the device, set its server to the address below, press Log in and
+            sign in with your account. The device shows up here once you confirm it in the browser.
+          </Text>
+          <CodeBlock>{data.server}</CodeBlock>
+          <Text>
+            Without a settings screen for the server (Windows, Linux), run this in a terminal:
+          </Text>
+          <CodeBlock>{`tailscale login --login-server=${data.server}`}</CodeBlock>
+        </DialogPanel>
+      </Dialog>
       <Dialog isOpen={pushDialog} onOpenChange={setPushDialog}>
         <DialogPanel isDisabled={!form.canSubmit}>
           <Title>Register Machine Key</Title>
@@ -76,6 +91,12 @@ export default function NewMachine(data: NewMachineProps) {
           Add Device
         </MenuTrigger>
         <MenuContent>
+          <MenuItem onClick={() => setLoginDialog(true)}>
+            <div className="flex items-center gap-x-3">
+              <LogIn className="w-4" />
+              Log in from the device
+            </div>
+          </MenuItem>
           <MenuItem
             disabled={data.disabledKeys?.includes("register")}
             onClick={() => setPushDialog(true)}
