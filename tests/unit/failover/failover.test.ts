@@ -10,13 +10,37 @@ const config = {
   ],
 };
 
-function state(selfIp: string, activeIp: string, active: number) {
+const RU = "62.0.0.1";
+const NL = "157.0.0.1";
+
+function state(
+  selfIp: string,
+  activeIp: string,
+  active: number,
+  extra: {
+    serving?: number;
+    unseen?: number;
+    requested?: boolean;
+    history?: { at: number; event: string }[];
+  } = {},
+) {
   return {
     self_ip: selfIp,
     server_name: "mesh.example.com",
     active_ip: activeIp,
-    takeover_requested: false,
-    metrics: { active, fenced: 0, dns_ok: 1, vote_age_seconds: 12, replication_errors: 0 },
+    last_action: active ? "serve" : "standby",
+    takeover_requested: extra.requested ?? false,
+    takeover_after: 300,
+    history: extra.history ?? [],
+    metrics: {
+      active,
+      serving: extra.serving ?? active,
+      active_unseen_seconds: extra.unseen ?? 0,
+      fenced: 0,
+      dns_ok: 1,
+      vote_age_seconds: 12,
+      replication_errors: 0,
+    },
   };
 }
 
@@ -75,21 +99,87 @@ describe("readServers", () => {
 });
 
 describe("summarize", () => {
-  test("names the server the DNS record points at", () => {
+  test("the server the name points at and that serves leads", () => {
     const summary = summarize([
-      { name: "RU", state: state("62.0.0.1", "62.0.0.1", 1) },
-      { name: "NL", state: state("157.0.0.1", "62.0.0.1", 0) },
+      { name: "RU", state: state(RU, RU, 1) },
+      { name: "NL", state: state(NL, RU, 0) },
     ]);
-    expect(summary.active).toBe("RU");
+    expect(summary).toMatchObject({ phase: "leading", leader: "RU", dnsTarget: "RU" });
+  });
+
+  test("a requested takeover is a switch to the requested server", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1) },
+      { name: "NL", state: state(NL, RU, 0, { requested: true }) },
+    ]);
+    expect(summary).toMatchObject({ phase: "switching", leader: "RU", requested: "NL" });
+  });
+
+  test("the name moved but the old server still serves: switching", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, NL, 0, { serving: 1 }) },
+      { name: "NL", state: state(NL, NL, 1, { serving: 0 }) },
+    ]);
+    expect(summary).toMatchObject({ phase: "switching", leader: "RU", dnsTarget: "NL" });
+  });
+
+  test("nobody serves: no leader, the name says who should", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1, { serving: 0 }) },
+      { name: "NL", state: state(NL, RU, 0) },
+    ]);
+    expect(summary).toMatchObject({ phase: "no_leader", dnsTarget: "RU" });
+    expect(summary.leader).toBeUndefined();
+  });
+
+  test("two servers serving is a split", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1) },
+      { name: "NL", state: state(NL, NL, 1) },
+    ]);
+    expect(summary.phase).toBe("split");
   });
 
   test("goes by any reachable server when the active one is down", () => {
     const summary = summarize([
       { name: "RU", error: "connect ETIMEDOUT" },
-      { name: "NL", state: state("157.0.0.1", "62.0.0.1", 0) },
+      { name: "NL", state: state(NL, RU, 0, { unseen: 120 }) },
     ]);
-    expect(summary.active).toBeUndefined();
-    expect(summary.activeIp).toBe("62.0.0.1");
+    expect(summary).toMatchObject({ phase: "no_leader", activeIp: RU });
+    expect(summary.dnsTarget).toBeUndefined();
+    expect(summary.countdown).toEqual({ server: "NL", unseen: 120, after: 300 });
+  });
+
+  test("no countdown while the standby still sees the active", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1) },
+      { name: "NL", state: state(NL, RU, 0, { unseen: 30 }) },
+    ]);
+    expect(summary.countdown).toBeUndefined();
+  });
+
+  test("merges both histories, newest first", () => {
+    const summary = summarize([
+      {
+        name: "RU",
+        state: state(RU, RU, 1, {
+          history: [
+            { at: 100, event: "stopped" },
+            { at: 300, event: "took over" },
+          ],
+        }),
+      },
+      { name: "NL", state: state(NL, RU, 0, { history: [{ at: 200, event: "took over" }] }) },
+    ]);
+    expect(summary.history).toEqual([
+      { at: 300, server: "RU", event: "took over" },
+      { at: 200, server: "NL", event: "took over" },
+      { at: 100, server: "RU", event: "stopped" },
+    ]);
+  });
+
+  test("nothing reachable is unknown", () => {
+    expect(summarize([{ name: "RU", error: "x" }]).phase).toBe("unknown");
   });
 });
 

@@ -2,13 +2,20 @@ import { data, useActionData } from "react-router";
 
 import Button from "~/components/button";
 import Card from "~/components/card";
+import Chip from "~/components/chip";
 import Dialog, { DialogPanel } from "~/components/dialog";
 import Notice from "~/components/notice";
 import StatusCircle from "~/components/status-circle";
 import Text from "~/components/text";
 import Title from "~/components/title";
 import { appConfigContext, authContext } from "~/server/context";
-import { type FailoverServer, readServers, requestTakeover, summarize } from "~/server/failover";
+import {
+  type FailoverServer,
+  type FailoverSummary,
+  readServers,
+  requestTakeover,
+  summarize,
+} from "~/server/failover";
 import { Capabilities } from "~/server/web/roles";
 
 import type { Route } from "./+types/overview";
@@ -28,7 +35,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const servers = await readServers(config.failover);
   return {
     servers,
-    ...summarize(servers),
+    summary: summarize(servers),
     writable: auth.can(principal, Capabilities.write_network),
     now: Date.now() / 1000,
   };
@@ -59,6 +66,69 @@ function age(now: number, timestamp?: number) {
   return `${Math.max(0, Math.round(now - timestamp))} s ago`;
 }
 
+const BADGE = {
+  good: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  warn: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  bad: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+} as const;
+
+function Badge({ text, tone }: { text: string; tone: keyof typeof BADGE }) {
+  return <Chip text={text} className={`px-2 font-medium ${BADGE[tone]}`} />;
+}
+
+function Status({ summary }: { summary: FailoverSummary }) {
+  const { phase, leader, dnsTarget, requested, activeIp, countdown } = summary;
+  const headline = {
+    leading: { tone: "good", text: `Leader: ${leader}` },
+    switching: {
+      tone: "warn",
+      text: `Switching: ${leader ?? "nobody"} → ${requested ?? dnsTarget ?? "unknown"}`,
+    },
+    no_leader: { tone: "bad", text: "No leader" },
+    split: { tone: "bad", text: "Two servers serve at once" },
+    unknown: { tone: "bad", text: "No server answers" },
+  }[phase] as { tone: keyof typeof BADGE; text: string };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <Badge text={headline.text} tone={headline.tone} />
+      </div>
+      <Text>
+        The mesh name points at {dnsTarget ?? activeIp ?? "an unknown address"}
+        {phase === "no_leader" && dnsTarget ? ", which does not serve yet" : ""}.
+        {requested ? ` ${requested} takes over at its next check, within a minute.` : ""}
+      </Text>
+      {countdown ? (
+        <Text>
+          {countdown.server} has not seen the leader for {countdown.unseen} s and takes over at{" "}
+          {countdown.after} s if the witness agrees.
+        </Text>
+      ) : undefined}
+    </div>
+  );
+}
+
+function History({ history }: { history: FailoverSummary["history"] }) {
+  if (history.length === 0) {
+    return <Text>No switches recorded yet.</Text>;
+  }
+  return (
+    <ul className="flex flex-col gap-1">
+      {history.map((h) => (
+        <li key={`${h.server}-${h.at}`}>
+          <Text>
+            <span className="font-medium" suppressHydrationWarning>
+              {new Date(h.at * 1000).toLocaleString()}
+            </span>{" "}
+            {h.server}: {h.event}
+          </Text>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Fact({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
   return (
     <Text>
@@ -70,15 +140,17 @@ function Fact({ label, value, bad }: { label: string; value: string; bad?: boole
 
 function ServerCard({
   server,
-  isActive,
+  summary,
   writable,
   now,
 }: {
   server: FailoverServer;
-  isActive: boolean;
+  summary: FailoverSummary;
   writable: boolean;
   now: number;
 }) {
+  const isLeader = summary.leader === server.name;
+  const isTarget = summary.dnsTarget === server.name;
   const metrics = server.state?.metrics ?? {};
   const voteAge = metrics.vote_age_seconds;
 
@@ -87,12 +159,22 @@ function ServerCard({
       <div className="flex items-center gap-3">
         <StatusCircle isOnline={server.state !== undefined} className="h-4 w-4" />
         <Card.Title className="mb-0">{server.name}</Card.Title>
-        {isActive ? <span className="text-sm font-medium">active</span> : undefined}
+        {isLeader ? <Badge text="Leader" tone="good" /> : undefined}
+        {isTarget && !isLeader ? <Badge text="Should lead" tone="warn" /> : undefined}
+        {server.state?.takeover_requested ? (
+          <Badge text="Takeover requested" tone="warn" />
+        ) : undefined}
       </div>
 
       {server.state ? (
         <div className="flex flex-col gap-1">
           <Fact label="Address" value={server.state.self_ip} />
+          <Fact
+            label="headscale"
+            value={metrics.serving ? "serving" : "stopped"}
+            bad={isTarget && !metrics.serving}
+          />
+          <Fact label="Last action" value={server.state.last_action ?? "none"} />
           <Fact label="Fenced" value={metrics.fenced ? "yes" : "no"} bad={metrics.fenced === 1} />
           <Fact
             label="Witness vote"
@@ -106,11 +188,6 @@ function ServerCard({
           />
           <Fact label="DNS API" value={metrics.dns_ok ? "ok" : "down"} bad={metrics.dns_ok === 0} />
           <Fact label="Last check" value={age(now, metrics.last_tick_timestamp_seconds)} />
-          {server.state.takeover_requested ? (
-            <Notice title="Takeover requested">
-              The next check on this server, within a minute, makes it active.
-            </Notice>
-          ) : undefined}
         </div>
       ) : (
         <Notice variant="error" title="Unreachable">
@@ -118,7 +195,7 @@ function ServerCard({
         </Notice>
       )}
 
-      {writable && server.state && !isActive && !server.state.takeover_requested ? (
+      {writable && server.state && !isLeader && !isTarget && !server.state.takeover_requested ? (
         <Dialog>
           <Button variant="heavy">Make {server.name} active</Button>
           <DialogPanel variant="destructive">
@@ -143,13 +220,10 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     <div className="flex max-w-(--breakpoint-lg) flex-col gap-8">
       <div className="flex w-full flex-col sm:w-2/3">
         <Title>Failover</Title>
-        <Text>
-          Which server runs headscale and how ready the other one is to take over.{" "}
-          {loaderData.active
-            ? `The mesh name points at ${loaderData.active}.`
-            : `The mesh name points at ${loaderData.activeIp ?? "an unknown address"}.`}
-        </Text>
+        <Text>Which server runs headscale and how ready the other one is to take over.</Text>
       </div>
+
+      <Status summary={loaderData.summary} />
 
       {result?.error ? (
         <Notice variant="error" title="Request failed">
@@ -162,11 +236,16 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           <ServerCard
             key={server.name}
             server={server}
-            isActive={server.name === loaderData.active}
+            summary={loaderData.summary}
             writable={loaderData.writable}
             now={loaderData.now}
           />
         ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Title>History</Title>
+        <History history={loaderData.summary.history} />
       </div>
     </div>
   );
