@@ -23,6 +23,7 @@ function state(
     requested?: boolean;
     lastAction?: string;
     history?: { at: number; event: string }[];
+    vote?: { at: number; view: Record<string, { ok: boolean; fail_since: number | null }> } | null;
   } = {},
 ) {
   return {
@@ -33,6 +34,7 @@ function state(
     takeover_requested: extra.requested ?? false,
     takeover_after: 300,
     history: extra.history ?? [],
+    vote: extra.vote ?? null,
     metrics: {
       active,
       serving: extra.serving ?? active,
@@ -185,6 +187,38 @@ describe("summarize", () => {
       { at: 200, server: "NL", event: "took over" },
       { at: 100, server: "RU", event: "stopped" },
     ]);
+  });
+
+  test("takes the witness's newest vote and names the servers in it", () => {
+    const summary = summarize([
+      {
+        name: "RU",
+        state: state(RU, RU, 1, {
+          vote: { at: 900, view: { [RU]: { ok: true, fail_since: null } } },
+        }),
+      },
+      {
+        name: "NL",
+        state: state(NL, RU, 0, {
+          vote: {
+            at: 960,
+            view: { [RU]: { ok: false, fail_since: 930 }, [NL]: { ok: true, fail_since: null } },
+          },
+        }),
+      },
+    ]);
+    expect(summary.witness).toEqual({
+      at: 960,
+      view: [
+        { server: "RU", ok: false, failSince: 930 },
+        { server: "NL", ok: true, failSince: null },
+      ],
+    });
+  });
+
+  test("no witness without a vote", () => {
+    const summary = summarize([{ name: "RU", state: state(RU, RU, 1) }]);
+    expect(summary.witness).toBeUndefined();
   });
 
   test("nothing reachable is unknown", () => {

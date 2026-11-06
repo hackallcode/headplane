@@ -324,3 +324,4 @@ integration:
 #       url: "http://100.64.0.110:8480"
 #     - name: "NL"
 #       url: "http://100.64.0.120:8480"
+#   witness: "berry-5"   # shown name of the host that votes

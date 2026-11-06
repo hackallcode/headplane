@@ -241,11 +241,13 @@ const failoverServer = type({ name: "string", url: "string.url" });
 const failoverConfig = type({
   token: "string",
   servers: failoverServer.array(),
+  witness: "string?",
 });
 
 const partialFailoverConfig = type({
   token: "string?",
   servers: failoverServer.array().optional(),
+  witness: "string?",
 });
 
 export const headplaneConfig = type({

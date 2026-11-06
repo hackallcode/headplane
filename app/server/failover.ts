@@ -1,6 +1,7 @@
 export interface FailoverConfig {
   token: string;
   servers: { name: string; url: string }[];
+  witness?: string;
 }
 
 export interface FailoverState {
@@ -12,6 +13,7 @@ export interface FailoverState {
   takeover_after?: number;
   metrics: Record<string, number>;
   history?: { at: number; event: string }[];
+  vote?: { at: number; view: Record<string, { ok: boolean; fail_since: number | null }> } | null;
 }
 
 export type FailoverPhase = "leading" | "switching" | "no_leader" | "split" | "unknown";
@@ -24,6 +26,7 @@ export interface FailoverSummary {
   requested?: string;
   countdown?: { server: string; unseen: number; after: number };
   history: { at: number; server: string; event: string }[];
+  witness?: { at: number; view: { server: string; ok: boolean; failSince: number | null }[] };
 }
 
 export type FailoverServer =
@@ -94,6 +97,23 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
     .sort((a, b) => b.at - a.at)
     .slice(0, HISTORY_SHOWN);
 
+  const vote = reachable
+    .map((s) => s.state.vote)
+    .filter((v): v is NonNullable<FailoverState["vote"]> => Boolean(v))
+    .sort((a, b) => b.at - a.at)[0];
+  const witness = vote
+    ? {
+        at: vote.at,
+        view: reachable
+          .filter((s) => vote.view[s.state.self_ip])
+          .map((s) => ({
+            server: s.name,
+            ok: vote.view[s.state.self_ip].ok,
+            failSince: vote.view[s.state.self_ip].fail_since,
+          })),
+      }
+    : undefined;
+
   let phase: FailoverPhase;
   if (reachable.length === 0) {
     phase = "unknown";
@@ -107,7 +127,7 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
     phase = "no_leader";
   }
 
-  return { phase, activeIp, dnsTarget, leader, requested, countdown, history };
+  return { phase, activeIp, dnsTarget, leader, requested, countdown, history, witness };
 }
 
 export async function requestTakeover(config: FailoverConfig, name: string) {

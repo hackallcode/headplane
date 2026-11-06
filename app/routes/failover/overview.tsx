@@ -36,6 +36,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return {
     servers,
     summary: summarize(servers),
+    witnessName: config.failover.witness ?? "Witness",
     writable: auth.can(principal, Capabilities.write_network),
     now: Date.now() / 1000,
   };
@@ -129,6 +130,53 @@ function Status({ summary }: { summary: FailoverSummary }) {
         </Text>
       ) : undefined}
     </div>
+  );
+}
+
+const VOTE_FRESH_S = 120;
+
+function WitnessCard({
+  name,
+  witness,
+  now,
+}: {
+  name: string;
+  witness: FailoverSummary["witness"];
+  now: number;
+}) {
+  const voteAge = witness ? Math.max(0, Math.round(now - witness.at)) : undefined;
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <StatusCircle
+          isOnline={voteAge !== undefined && voteAge <= VOTE_FRESH_S}
+          className="h-4 w-4"
+        />
+        <Card.Title className="mb-0">{name}</Card.Title>
+        <Chip text="witness" />
+      </div>
+      {witness ? (
+        <div className="flex flex-col gap-1">
+          <Fact label="Last vote" value={`${voteAge} s ago`} bad={voteAge! > VOTE_FRESH_S} />
+          {witness.view.map((v) => (
+            <Fact
+              key={v.server}
+              label={`Sees ${v.server}`}
+              value={
+                v.ok
+                  ? "up"
+                  : `down for ${v.failSince ? Math.max(0, Math.round(now - v.failSince)) : "?"} s`
+              }
+              bad={!v.ok}
+            />
+          ))}
+        </div>
+      ) : (
+        <Notice variant="error" title="No vote">
+          No server has a vote from the witness: automatic failover is off.
+        </Notice>
+      )}
+    </Card>
   );
 }
 
@@ -266,6 +314,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             now={loaderData.now}
           />
         ))}
+        <WitnessCard
+          name={loaderData.witnessName}
+          witness={loaderData.summary.witness}
+          now={loaderData.now}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
