@@ -214,8 +214,8 @@ function EtcdCard({ summary, now }: { summary: FailoverSummary; now: number }) {
           <Fact label="Members" value="unknown" bad />
         )}
         <Fact
-          label="Next if the leader fails"
-          value={summary.queue.slice(1).join(", ") || "nobody"}
+          label="Failover priority"
+          value={summary.queue.map((name, i) => `${i + 1}. ${name}`).join(", ") || "nobody"}
           bad={summary.queue.length < 2}
         />
         <Fact
