@@ -90,6 +90,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             IMAGE_TAG=ghcr.io/${{ github.repository }}:${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            HEADPLANE_PREFIX=/panel
             HEADPLANE_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
       - name: Attest build provenance
