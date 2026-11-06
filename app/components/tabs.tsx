@@ -29,7 +29,7 @@ function TabList({ children, className }: { children: ReactNode; className?: str
   return (
     <BaseTabs.List
       className={cn(
-        "flex items-center rounded-t-md w-fit max-w-full",
+        "flex flex-wrap items-center rounded-t-md w-fit max-w-full",
         "border-mist-200 dark:border-mist-800",
         "border-t border-x",
         className,
@@ -51,7 +51,7 @@ function Tab({
       value={value}
       {...props}
       className={cn(
-        "pl-2 pr-3 py-2.5",
+        "pl-2 pr-3 py-2.5 text-nowrap max-sm:flex-auto",
         "data-[selected]:bg-mist-50 dark:data-[selected]:bg-mist-950",
         "focus:outline-hidden focus:ring-2 focus:ring-indigo-500/40 focus:ring-offset-1 z-10",
         "dark:focus:ring-indigo-400/40 dark:focus:ring-offset-mist-900",
