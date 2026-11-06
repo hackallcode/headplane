@@ -70,7 +70,11 @@ export function summarize(servers: FailoverServer[]): FailoverSummary {
   const dnsTarget = reachable.find((s) => s.state.self_ip === activeIp)?.name;
   const serving = reachable.filter((s) => s.state.metrics.serving === 1).map((s) => s.name);
   const leader = serving.length === 1 ? serving[0] : undefined;
-  const requested = reachable.find((s) => s.state.takeover_requested)?.name;
+  const requested = reachable.find(
+    (s) =>
+      s.state.takeover_requested ||
+      (s.state.last_action === "takeover" && s.state.metrics.serving !== 1),
+  )?.name;
 
   const standby = reachable.find(
     (s) => s.name !== leader && (s.state.metrics.active_unseen_seconds ?? 0) >= COUNTDOWN_AFTER_S,

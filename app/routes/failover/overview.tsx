@@ -77,28 +77,51 @@ function Badge({ text, tone }: { text: string; tone: keyof typeof BADGE }) {
 }
 
 function Status({ summary }: { summary: FailoverSummary }) {
-  const { phase, leader, dnsTarget, requested, activeIp, countdown } = summary;
-  const headline = {
-    leading: { tone: "good", text: `Leader: ${leader}` },
+  const { phase, leader, dnsTarget, requested, countdown } = summary;
+  if (phase === "leading" && !countdown) {
+    return undefined;
+  }
+
+  const to = requested ?? dnsTarget;
+  const status: Record<
+    Exclude<typeof phase, "leading">,
+    { tone: keyof typeof BADGE; title: string; text: string }
+  > = {
     switching: {
       tone: "warn",
-      text: `Switching: ${leader ?? "nobody"} → ${requested ?? dnsTarget ?? "unknown"}`,
+      title: `Switching from ${leader ?? "nobody"} to ${to ?? "an unknown server"}`,
+      text: `${to ?? "The new server"} restores the database and starts headscale, the other one stops on its own. Clients reconnect without logging in again.`,
     },
-    no_leader: { tone: "bad", text: "No leader" },
-    split: { tone: "bad", text: "Two servers serve at once" },
-    unknown: { tone: "bad", text: "No server answers" },
-  }[phase] as { tone: keyof typeof BADGE; text: string };
+    no_leader: {
+      tone: "bad",
+      title: "No leader",
+      text: dnsTarget
+        ? `Clients are sent to ${dnsTarget}, which is not serving yet.`
+        : "No reachable server is serving headscale.",
+    },
+    split: {
+      tone: "bad",
+      title: "Two servers serve at once",
+      text: `Clients are sent to ${dnsTarget ?? "an unknown server"}; the other one stops at its next check.`,
+    },
+    unknown: {
+      tone: "bad",
+      title: "No server answers",
+      text: "Neither server's failover API responds.",
+    },
+  };
+  const current = phase === "leading" ? undefined : status[phase];
 
   return (
     <div className="flex flex-col gap-2">
-      <div>
-        <Badge text={headline.text} tone={headline.tone} />
-      </div>
-      <Text>
-        The mesh name points at {dnsTarget ?? activeIp ?? "an unknown address"}
-        {phase === "no_leader" && dnsTarget ? ", which does not serve yet" : ""}.
-        {requested ? ` ${requested} takes over at its next check, within a minute.` : ""}
-      </Text>
+      {current ? (
+        <>
+          <div>
+            <Badge text={current.title} tone={current.tone} />
+          </div>
+          <Text>{current.text}</Text>
+        </>
+      ) : undefined}
       {countdown ? (
         <Text>
           {countdown.server} has not seen the leader for {countdown.unseen} s and takes over at{" "}
@@ -151,6 +174,8 @@ function ServerCard({
 }) {
   const isLeader = summary.leader === server.name;
   const isTarget = summary.dnsTarget === server.name;
+  const isTakingOver = summary.requested === server.name;
+  const canSwitch = summary.phase === "leading" || summary.phase === "no_leader";
   const metrics = server.state?.metrics ?? {};
   const voteAge = metrics.vote_age_seconds;
 
@@ -160,9 +185,9 @@ function ServerCard({
         <StatusCircle isOnline={server.state !== undefined} className="h-4 w-4" />
         <Card.Title className="mb-0">{server.name}</Card.Title>
         {isLeader ? <Badge text="Leader" tone="good" /> : undefined}
-        {isTarget && !isLeader ? <Badge text="Should lead" tone="warn" /> : undefined}
-        {server.state?.takeover_requested ? (
-          <Badge text="Takeover requested" tone="warn" />
+        {isTakingOver ? <Badge text="Taking over" tone="warn" /> : undefined}
+        {isTarget && !isLeader && !isTakingOver ? (
+          <Badge text="Should lead" tone="warn" />
         ) : undefined}
       </div>
 
@@ -195,15 +220,15 @@ function ServerCard({
         </Notice>
       )}
 
-      {writable && server.state && !isLeader && !isTarget && !server.state.takeover_requested ? (
+      {writable && canSwitch && server.state && !isLeader && !isTarget && !isTakingOver ? (
         <Dialog>
           <Button variant="heavy">Make {server.name} active</Button>
           <DialogPanel variant="destructive">
             <Title>Make {server.name} the control server?</Title>
             <Text>
-              {server.name} restores the newest replica of the database, points the mesh name at
-              itself and starts headscale; the current server stops on its own. Clients reconnect
-              without logging in again.
+              {server.name} restores the newest replica of the database, starts headscale and sends
+              clients to itself; the current server stops on its own. Clients reconnect without
+              logging in again.
             </Text>
             <input name="server" type="hidden" value={server.name} />
           </DialogPanel>

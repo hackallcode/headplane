@@ -21,6 +21,7 @@ function state(
     serving?: number;
     unseen?: number;
     requested?: boolean;
+    lastAction?: string;
     history?: { at: number; event: string }[];
   } = {},
 ) {
@@ -28,7 +29,7 @@ function state(
     self_ip: selfIp,
     server_name: "mesh.example.com",
     active_ip: activeIp,
-    last_action: active ? "serve" : "standby",
+    last_action: extra.lastAction ?? (active ? "serve" : "standby"),
     takeover_requested: extra.requested ?? false,
     takeover_after: 300,
     history: extra.history ?? [],
@@ -111,6 +112,14 @@ describe("summarize", () => {
     const summary = summarize([
       { name: "RU", state: state(RU, RU, 1) },
       { name: "NL", state: state(NL, RU, 0, { requested: true }) },
+    ]);
+    expect(summary).toMatchObject({ phase: "switching", leader: "RU", requested: "NL" });
+  });
+
+  test("a takeover still restoring the database is a switch, not a free server", () => {
+    const summary = summarize([
+      { name: "RU", state: state(RU, RU, 1) },
+      { name: "NL", state: state(NL, NL, 1, { serving: 0, lastAction: "takeover" }) },
     ]);
     expect(summary).toMatchObject({ phase: "switching", leader: "RU", requested: "NL" });
   });
