@@ -229,6 +229,10 @@ role. All subsequent users are assigned the **Member** role (no access) by
 default. An owner or admin must then assign them an appropriate role through
 the Users page.
 
+With `oidc.role_claim` set, roles come from the identity provider and nobody
+is made owner on first login: every instance of Headplane in front of the same
+Headscale gives a user the same role, whoever signs in first.
+
 ### Automatic Role Assignment
 
 You can change the role assigned to newly created OIDC users with
