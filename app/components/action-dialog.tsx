@@ -1,5 +1,5 @@
 import { Form } from "@base-ui/react/form";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
 import Button from "~/components/button";
@@ -29,6 +29,7 @@ export interface ActionDialogProps {
   children?: React.ReactNode;
   // Replaces the form after a successful submit instead of closing.
   success?: (data: Record<string, string>) => React.ReactNode;
+  onSuccess?: () => void;
 }
 
 export default function ActionDialog({
@@ -45,6 +46,7 @@ export default function ActionDialog({
   trigger,
   children,
   success,
+  onSuccess,
 }: ActionDialogProps) {
   const fetcher = useFetcher<ActionResult>();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -58,6 +60,15 @@ export default function ActionDialog({
   const result = hasSubmitted && !isPending ? fetcher.data : undefined;
   const isDone = result?.ok === true && !success;
   const errors = result?.ok === false ? result.errors : undefined;
+  const isSucceeded = result?.ok === true;
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+
+  useEffect(() => {
+    if (isSucceeded) {
+      onSuccessRef.current?.();
+    }
+  }, [isSucceeded]);
 
   function handleOpenChange(next: boolean) {
     if (!next && isPending) {

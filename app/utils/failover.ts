@@ -1,0 +1,2 @@
+export const AGENT_TIMEOUT_MS = 4_000;
+export const PANEL_STATE_TIMEOUT_MS = AGENT_TIMEOUT_MS + 2_000;

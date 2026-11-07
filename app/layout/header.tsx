@@ -29,6 +29,7 @@ export interface HeaderProps {
     users: boolean;
     policy: boolean;
     settings: boolean;
+    failover: boolean;
   };
   configAvailable: boolean;
 }
@@ -38,6 +39,7 @@ const tabs = [
   { to: "/users", label: "Users", key: "users" },
   { to: "/acls", label: "Access controls", key: "policy" },
   { to: "/dns", label: "DNS", key: "dns" },
+  { to: "/failover", label: "Failover", key: "failover" },
   { to: "/settings", label: "Settings", key: "settings" },
 ] as const;
 

@@ -15,6 +15,7 @@ from it, trimming surrounding whitespace:
 | `headscale.api_key`      | `headscale.api_key_path`      |
 | `oidc.client_secret`     | `oidc.client_secret_path`     |
 | `oidc.headscale_api_key` | `oidc.headscale_api_key_path` |
+| `failover.token`         | `failover.token_path`         |
 
 `oidc.headscale_api_key` is deprecated; use `headscale.api_key` instead.
 
