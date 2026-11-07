@@ -9,6 +9,7 @@ permissions:
 jobs:
   remove-triage:
     name: Remove Needs Triage Label
+    if: github.repository == 'tale/headplane'
     runs-on: ubuntu-latest
     steps:
       - name: Remove Needs Triage label

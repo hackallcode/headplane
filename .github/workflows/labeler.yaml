@@ -10,6 +10,7 @@ permissions:
 jobs:
   label:
     name: Label Pull Request
+    if: github.repository == 'tale/headplane'
     runs-on: ubuntu-latest
     steps:
       - name: Apply labels based on changed files

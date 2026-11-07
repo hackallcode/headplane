@@ -23,7 +23,7 @@ permissions:
 jobs:
   nix-pnpm-hash:
     name: Update Nix PNPM Hash
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'tale/headplane' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -67,7 +67,7 @@ jobs:
 
   flake-inputs:
     name: Update Flake Inputs
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'tale/headplane' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo

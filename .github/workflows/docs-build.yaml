@@ -24,6 +24,7 @@ permissions:
 jobs:
   build:
     name: Build Release Docs
+    if: github.repository == 'tale/headplane'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo

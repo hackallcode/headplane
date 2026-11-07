@@ -98,33 +98,3 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
-
-  release:
-    name: GitHub Release
-    needs: [channel, docker]
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: write
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: package.json
-
-      - name: Publish the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-          LATEST: ${{ needs.channel.outputs.latest }}
-        run: |
-          node scripts/release.ts notes "$TAG" > "$RUNNER_TEMP/notes.md"
-          if [[ "$TAG" == *-* ]]; then
-            gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --prerelease
-          else
-            gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest="$LATEST"
-            gh workflow run docs-build.yaml --ref "$TAG"
-          fi

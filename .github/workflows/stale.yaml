@@ -11,6 +11,7 @@ permissions:
 jobs:
   stale:
     name: Close Stale Issues
+    if: github.repository == 'tale/headplane'
     runs-on: ubuntu-latest
     steps:
       - name: Mark and close stale issues
