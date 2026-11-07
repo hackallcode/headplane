@@ -1,5 +1,7 @@
 import type { User } from "~/types/User";
 
+import type { AuthService, UserPrincipal } from "./auth";
+
 /**
  * Extracts the OIDC subject from a Headscale user's providerId.
  * Headscale stores providerId as a URL where the last path segment
@@ -41,4 +43,28 @@ export function findHeadscaleUserBySubject(
 
 export function allowedByGroups(groups: string[], allowed: string[]): boolean {
   return allowed.length === 0 || groups.some((g) => allowed.includes(g));
+}
+
+/**
+ * Links a signed-in Headplane user to its Headscale user once Headscale
+ * creates it, which happens when the user registers their first device
+ * after signing in to Headplane.
+ */
+export async function linkOwnHeadscaleUser(
+  auth: AuthService,
+  principal: UserPrincipal,
+  listUsers: () => Promise<User[]>,
+): Promise<void> {
+  if (principal.user.headscaleUserId) {
+    return;
+  }
+
+  const hsUser = findHeadscaleUserBySubject(
+    await listUsers(),
+    principal.user.subject,
+    principal.profile.email,
+  );
+  if (hsUser && (await auth.linkHeadscaleUser(principal.user.id, hsUser.id))) {
+    principal.user.headscaleUserId = hsUser.id;
+  }
 }

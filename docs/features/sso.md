@@ -161,6 +161,11 @@ Once a link is established, it's stored as a `headscale_user_id` in Headplane's
 database and reused on subsequent logins — so the matching only needs to succeed
 once.
 
+Headscale creates an OIDC user only when it registers that user's first device,
+which may happen after the user signed in to Headplane. Until a link exists,
+Headplane retries the match on each page load, so the device shows up without
+signing in again.
+
 ### Headscale Without OIDC
 
 If your Headscale instance uses **local users** (created via
