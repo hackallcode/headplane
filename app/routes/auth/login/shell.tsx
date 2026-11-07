@@ -2,7 +2,7 @@ import type React from "react";
 import { Form } from "react-router";
 
 import Link from "~/components/link";
-import LogoMark from "~/components/logo-mark";
+import HcLockup from "~/layout/hc-lockup";
 import cn from "~/utils/cn";
 
 import Grid from "./grid";
@@ -19,10 +19,7 @@ export default function Shell({ title, description, isWide, children }: Props) {
     <div className="flex min-h-dvh">
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="p-6 sm:p-8">
-          <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-            <LogoMark className="size-5" />
-            headplane
-          </span>
+          <HcLockup />
         </header>
         <main className="flex flex-1 items-center justify-center px-6 py-6 sm:px-8">
           <div className={cn("w-full", isWide ? "max-w-md" : "max-w-sm")}>

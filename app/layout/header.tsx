@@ -9,10 +9,11 @@ import {
 
 import Avatar from "~/components/avatar";
 import Link from "~/components/link";
-import LogoMark from "~/components/logo-mark";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "~/components/menu";
 import cn from "~/utils/cn";
 import type { ColorScheme } from "~/utils/color-scheme";
+
+import HcLockup from "./hc-lockup";
 
 export interface HeaderProps {
   user: {
@@ -71,10 +72,7 @@ export default function Header({ user, access, configAvailable }: HeaderProps) {
   return (
     <header className={cn("sticky top-0 z-20 bg-surface text-fg", "border-b border-line")}>
       <div className="container flex h-13 items-center gap-x-5">
-        <div className="flex items-center gap-x-2">
-          <LogoMark className="size-[18px] shrink-0" />
-          <span className="text-sm font-semibold tracking-tight">headplane</span>
-        </div>
+        <HcLockup />
         {showTabs && (
           <nav className="hidden h-full min-w-0 gap-x-0.5 overflow-x-auto text-[13px] font-medium md:flex">
             {visibleTabs.map((tab) => (

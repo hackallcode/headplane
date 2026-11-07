@@ -100,6 +100,8 @@ describe.each(["/admin", "/tools/web"])("the production build at %s", (prefix) =
       // Fonts are imported relative to the stylesheet, not the path.
       for (const [, font] of (await response.text()).matchAll(/url\(([^)]+\.woff2)\)/g)) {
         const fontUrl = new URL(font, `${origin}${url}`);
+        // The hack[*]code fonts come from its own static host, whatever the path.
+        if (fontUrl.origin !== origin) continue;
         expect(fontUrl.pathname.startsWith(`${prefix}/assets/`), font).toBe(true);
         expect((await fetch(fontUrl)).status, font).toBe(200);
       }

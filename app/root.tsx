@@ -20,7 +20,7 @@ import "./tailwind.css";
 import { getColorScheme } from "./utils/color-scheme";
 
 export const meta: MetaFunction = () => [
-  { title: "Headplane" },
+  { title: "Mesh · hack[*]code" },
   {
     name: "description",
     content: "A frontend for the headscale coordination server",

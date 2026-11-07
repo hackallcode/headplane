@@ -136,7 +136,7 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
   ) : undefined;
 
   return (
-    <Shell title="Sign in to Headplane">
+    <Shell title="Sign in to Mesh">
       {notice}
       {isOidcConnectorEnabled && (
         <>
