@@ -14,6 +14,7 @@ import {
 } from "~/server/context";
 import { usersResource } from "~/server/headscale/live-store";
 import { isUserPrincipal } from "~/server/web/auth";
+import { ownedKeys } from "~/server/web/ownership";
 import { Capabilities } from "~/server/web/roles";
 import type { PreAuthKey } from "~/types";
 import type { User } from "~/types/User";
@@ -99,6 +100,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const canGenerateAny = auth.can(principal, Capabilities.generate_authkeys);
   const canGenerateOwn = auth.can(principal, Capabilities.generate_own_authkeys);
+  if (!canGenerateAny) {
+    const own = isUserPrincipal(principal) ? principal.user.headscaleUserId : undefined;
+    keys = ownedKeys(keys, own);
+    missing = missing.filter((m) => m.user.id === own);
+  }
 
   return {
     access: canGenerateAny || canGenerateOwn,
@@ -108,7 +114,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     missing,
     selfServiceOnly: !canGenerateAny && canGenerateOwn,
     url: config.headscale.public_url ?? config.headscale.url,
-    users,
+    users:
+      canGenerateAny || auth.can(principal, Capabilities.read_users)
+        ? users
+        : users.filter(
+            (u) => isUserPrincipal(principal) && u.id === principal.user.headscaleUserId,
+          ),
   };
 }
 

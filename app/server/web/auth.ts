@@ -77,6 +77,7 @@ export interface AuthService {
   require(request: Request): Promise<Principal>;
   can(principal: Principal, capabilities: Capabilities): boolean;
   canManageNode(principal: Principal, node: Machine): boolean;
+  visibleNodes<T extends Machine>(principal: Principal, nodes: T[]): T[];
   getHeadscaleApiKey(principal: Principal): string;
   createOidcSession(
     userId: string,
@@ -515,6 +516,19 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     return hsUserId !== undefined && node.user?.id === hsUserId;
   }
 
+  function visibleNodes<T extends Machine>(principal: Principal, nodes: T[]): T[] {
+    if (can(principal, Capabilities.read_machines)) {
+      return nodes;
+    }
+
+    if (principal.kind === "api_key" || !can(principal, Capabilities.read_own_machines)) {
+      return [];
+    }
+
+    const hsUserId = principal.user.headscaleUserId;
+    return hsUserId === undefined ? [] : nodes.filter((node) => node.user?.id === hsUserId);
+  }
+
   function getHeadscaleApiKey(principal: Principal): string {
     if (principal.kind === "api_key") {
       return principal.apiKey;
@@ -782,6 +796,7 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     require: require,
     can,
     canManageNode,
+    visibleNodes,
     getHeadscaleApiKey,
     createOidcSession,
     createApiKeySession,

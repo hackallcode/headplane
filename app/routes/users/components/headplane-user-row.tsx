@@ -119,6 +119,8 @@ function mapRoleToName(role: Role) {
       return "Auditor";
     case "viewer":
       return "Viewer";
+    case "user":
+      return "User";
     case "member":
       return <p className="opacity-50">Member</p>;
     default:

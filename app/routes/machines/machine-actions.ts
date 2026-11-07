@@ -3,6 +3,7 @@ import { data, redirect } from "react-router";
 import { authContext, headscaleLiveStoreContext, requestApiContext } from "~/server/context";
 import { isDataWithApiError } from "~/server/headscale/api/error-client";
 import { nodesResource } from "~/server/headscale/live-store";
+import { ownerMayRun } from "~/server/web/ownership";
 import { Capabilities } from "~/server/web/roles";
 import { normalizeRegistrationKey } from "~/utils/register-key";
 
@@ -73,7 +74,10 @@ export async function machineAction({ request, context }: Route.ActionArgs) {
     });
   }
 
-  if (!auth.canManageNode(principal, node)) {
+  if (
+    !auth.canManageNode(principal, node) ||
+    (!auth.can(principal, Capabilities.write_machines) && !ownerMayRun(action))
+  ) {
     throw data("You do not have permission to act on this machine", {
       status: 403,
     });
