@@ -40,7 +40,8 @@ RUN ./build.sh --app --app-install-only
 
 COPY . .
 ARG HEADPLANE_VERSION
-RUN HEADPLANE_VERSION=$HEADPLANE_VERSION ./build.sh --app
+ARG HEADPLANE_PREFIX=/admin
+RUN HEADPLANE_VERSION=$HEADPLANE_VERSION __INTERNAL_PREFIX=$HEADPLANE_PREFIX ./build.sh --app
 
 FROM gcr.io/distroless/nodejs24-debian13:latest AS final
 COPY --from=js-base /run/build /app/build
