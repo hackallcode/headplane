@@ -16,6 +16,7 @@ import {
   requestApiContext,
 } from "~/server/context";
 import { nodesResource, usersResource } from "~/server/headscale/live-store";
+import { isUserPrincipal } from "~/server/web/auth";
 import { Capabilities } from "~/server/web/roles";
 import { getOSInfo, getTSVersion } from "~/utils/host-info";
 import { extractTagOwnerTags, isNoExpiry, mapNodes, sortAssignableTags } from "~/utils/node-info";
@@ -44,7 +45,15 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     throw data(null, { status: 204 });
   }
 
-  await auth.requireCapability(request, Capabilities.read_machines);
+  const principal = await auth.require(request);
+  if (
+    !auth.can(principal, Capabilities.read_machines) &&
+    !auth.can(principal, Capabilities.read_own_machines)
+  ) {
+    throw data("You don't have permission to view this page. Ask your administrator for access.", {
+      status: 403,
+    });
+  }
   const magic = headscaleConfig.getMagicDNSBaseDomain();
 
   const { api } = await getRequestApi(request);
@@ -52,8 +61,13 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     headscaleLiveStore.get(nodesResource, api),
     headscaleLiveStore.get(usersResource, api),
   ]);
-  const nodes = nodesSnap.data;
-  const users = usersSnap.data;
+  // The `user` role only reaches the machines of its linked Headscale user.
+  const nodes = auth.visibleNodes(principal, nodesSnap.data);
+  const users = auth.can(principal, Capabilities.read_users)
+    ? usersSnap.data
+    : usersSnap.data.filter(
+        (user) => isUserPrincipal(principal) && user.id === principal.user.headscaleUserId,
+      );
   const node = nodes.find((node) => node.id === params.id);
   if (node == null) {
     throw data(null, { status: 404 });
@@ -90,6 +104,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     supportsDisablingKeyExpiry: supportsDisablingKeyExpiry,
     tags,
     users,
+    writable: auth.can(principal, Capabilities.write_machines),
   };
 }
 
@@ -109,6 +124,7 @@ export default function Page({
     policyTags,
     supportsNodeOwnerChange,
     supportsDisablingKeyExpiry,
+    writable,
   },
 }: Route.ComponentProps) {
   const [showRouting, setShowRouting] = useState(false);
@@ -138,6 +154,7 @@ export default function Page({
             existingTags={existingTags}
             policyTags={policyTags}
             isFullButton
+            ownerOnly={!writable}
             magic={magic}
             node={node}
             users={users}

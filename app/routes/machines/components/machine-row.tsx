@@ -28,6 +28,7 @@ interface Props {
   latestVersion?: string;
   magic?: string;
   isDisabled?: boolean;
+  ownerOnly?: boolean;
   existingTags?: string[];
   policyTags?: string[];
   supportsNodeOwnerChange: boolean;
@@ -41,6 +42,7 @@ export default function MachineRow({
   latestVersion,
   magic,
   isDisabled,
+  ownerOnly,
   existingTags,
   policyTags,
   supportsNodeOwnerChange,
@@ -165,6 +167,7 @@ export default function MachineRow({
           existingTags={existingTags}
           policyTags={policyTags}
           isDisabled={isDisabled}
+          ownerOnly={ownerOnly}
           magic={magic}
           node={node}
           users={users}

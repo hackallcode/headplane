@@ -1,6 +1,6 @@
 import { Info, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { data, useSearchParams } from "react-router";
 
 import Code from "~/components/code";
 import Input from "~/components/input";
@@ -28,6 +28,8 @@ import {
 import { nodesResource, usersResource } from "~/server/headscale/live-store";
 import { latestTailscaleVersion } from "~/server/tailscale-release";
 import { isUserPrincipal } from "~/server/web/auth";
+import { autoLink } from "~/server/web/link";
+import { addDeviceOptions } from "~/server/web/ownership";
 import { Capabilities } from "~/server/web/roles";
 import cn from "~/utils/cn";
 import {
@@ -54,7 +56,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const headscaleConfig = context.get(headscaleConfigContext);
   const headscaleLiveStore = context.get(headscaleLiveStoreContext);
 
-  const principal = await auth.requireCapability(request, Capabilities.read_machines);
+  const principal = await auth.require(request);
+  if (
+    !auth.can(principal, Capabilities.read_machines) &&
+    !auth.can(principal, Capabilities.read_own_machines)
+  ) {
+    throw data("You don't have permission to view this page. Ask your administrator for access.", {
+      status: 403,
+    });
+  }
+
+  // The home page sends the `user` role here before its first device exists,
+  // so the retry has to run here for the machine to show up once it registers.
+  if (
+    isUserPrincipal(principal) &&
+    !principal.user.headscaleUserId &&
+    !auth.can(principal, Capabilities.read_machines)
+  ) {
+    principal.user.headscaleUserId = await autoLink({ request, context }, principal);
+  }
 
   const writablePermission = auth.can(principal, Capabilities.write_machines);
 
@@ -63,8 +83,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     headscaleLiveStore.get(nodesResource, api),
     headscaleLiveStore.get(usersResource, api),
   ]);
-  const nodes = nodesSnap.data;
-  const users = usersSnap.data;
+  // The `user` role only sees the machines of its linked Headscale user.
+  const nodes = auth.visibleNodes(principal, nodesSnap.data);
+  const users = auth.can(principal, Capabilities.read_users)
+    ? usersSnap.data
+    : usersSnap.data.filter(
+        (user) => isUserPrincipal(principal) && user.id === principal.user.headscaleUserId,
+      );
 
   const magic = headscaleConfig.getMagicDNSBaseDomain();
 
@@ -96,7 +121,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     magic,
     nodes,
     populatedNodes,
-    preAuth: auth.can(principal, Capabilities.generate_authkeys),
+    addDevice: addDeviceOptions({
+      writable: writablePermission,
+      anyKeys: auth.can(principal, Capabilities.generate_authkeys),
+      ownKeys: auth.can(principal, Capabilities.generate_own_authkeys),
+      linked: isUserPrincipal(principal) && principal.user.headscaleUserId !== undefined,
+    }),
     publicServer: config.headscale.public_url,
     server: config.headscale.url,
     supportsNodeOwnerChange: supportsNodeOwnerChange,
@@ -253,8 +283,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       <PageHeader
         actions={
           <NewMachine
-            disabledKeys={loaderData.preAuth ? [] : ["pre-auth"]}
-            isDisabled={!loaderData.writable}
+            disabledKeys={[
+              ...(loaderData.addDevice.register ? [] : ["register"]),
+              ...(loaderData.addDevice.preAuth ? [] : ["pre-auth"]),
+            ]}
+            isDisabled={loaderData.addDevice.disabled}
             server={loaderData.publicServer ?? loaderData.server}
             users={loaderData.users}
           />
@@ -371,6 +404,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                     ? false // If the user has write permissions, they can edit all machines
                     : node.user?.id !== loaderData.headscaleUserId
                 }
+                ownerOnly={!loaderData.writable}
                 key={node.id}
                 latestVersion={loaderData.latestVersion}
                 magic={loaderData.magic}

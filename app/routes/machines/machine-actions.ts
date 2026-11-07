@@ -98,7 +98,11 @@ export const machineAction = createAction({
         return ok("Machine expired");
       },
     },
+    // Tags, routes, expiry settings and owner changes shape what a machine may
+    // reach, so they stay with roles that can write any machine. The `user`
+    // role only gets rename, delete and expire on its own machines.
     toggle_expiry: {
+      capability: Capabilities.write_machines,
       fields: { node_id: nodeId, disable_expiry: toggle },
       async handler(input, { api, capabilities, requireNode, refresh }) {
         const node = await requireNode(input.node_id);
@@ -115,6 +119,7 @@ export const machineAction = createAction({
       },
     },
     update_tags: {
+      capability: Capabilities.write_machines,
       fields: { node_id: nodeId, tags: list() },
       async handler(input, { api, requireNode, refresh }) {
         const node = await requireNode(input.node_id);
@@ -125,6 +130,7 @@ export const machineAction = createAction({
       },
     },
     update_routes: {
+      capability: Capabilities.write_machines,
       fields: { node_id: nodeId, routes: list(), enabled: toggle },
       async handler(input, { api, requireNode, refresh }) {
         const node = await requireNode(input.node_id);
@@ -140,6 +146,7 @@ export const machineAction = createAction({
       },
     },
     reassign: {
+      capability: Capabilities.write_machines,
       fields: {
         node_id: nodeId,
         user_id: v.pipe(v.string(), v.minLength(1, "Choose an owner.")),

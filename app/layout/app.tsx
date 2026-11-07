@@ -98,9 +98,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return {
       access: {
         dns: auth.can(principal, Capabilities.read_network),
-        machines: auth.can(principal, Capabilities.read_machines),
+        machines:
+          auth.can(principal, Capabilities.read_machines) ||
+          auth.can(principal, Capabilities.read_own_machines),
         policy: auth.can(principal, Capabilities.read_policy),
-        settings: auth.can(principal, Capabilities.read_feature),
+        settings:
+          auth.can(principal, Capabilities.read_feature) ||
+          auth.can(principal, Capabilities.generate_own_authkeys),
         ui: auth.can(principal, Capabilities.ui_access),
         users: auth.can(principal, Capabilities.read_users),
       },

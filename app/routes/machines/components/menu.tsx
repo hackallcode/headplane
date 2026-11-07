@@ -22,6 +22,7 @@ interface MenuProps {
   magic?: string;
   isFullButton?: boolean;
   isDisabled?: boolean;
+  ownerOnly?: boolean;
   existingTags?: string[];
   policyTags?: string[];
   supportsNodeOwnerChange: boolean;
@@ -36,6 +37,7 @@ export default function MachineMenu({
   users,
   isFullButton,
   isDisabled,
+  ownerOnly,
   existingTags,
   policyTags,
   supportsNodeOwnerChange,
@@ -164,14 +166,16 @@ export default function MachineMenu({
         </MenuTrigger>
         <MenuContent>
           <MenuItem onClick={() => setModal("rename")}>Edit machine name</MenuItem>
-          {supportsDisablingKeyExpiry && (
+          {supportsDisablingKeyExpiry && !ownerOnly && (
             <MenuItem onClick={() => setModal("key-expiry")}>
               {isNoExpiry(node.expiry) ? "Enable" : "Disable"} key expiry
             </MenuItem>
           )}
-          <MenuItem onClick={() => setModal("routes")}>Edit route settings</MenuItem>
-          <MenuItem onClick={() => setModal("tags")}>Edit ACL tags</MenuItem>
-          {supportsNodeOwnerChange && (
+          {!ownerOnly && (
+            <MenuItem onClick={() => setModal("routes")}>Edit route settings</MenuItem>
+          )}
+          {!ownerOnly && <MenuItem onClick={() => setModal("tags")}>Edit ACL tags</MenuItem>}
+          {supportsNodeOwnerChange && !ownerOnly && (
             <MenuItem onClick={() => setModal("move")}>Change owner</MenuItem>
           )}
           <MenuSeparator />
