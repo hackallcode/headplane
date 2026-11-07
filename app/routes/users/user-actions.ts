@@ -64,7 +64,7 @@ export async function userAction({ request, context }: Route.ActionArgs) {
 
       await api.users.delete(headscaleUserId);
       for (const user of await auth.listUsers()) {
-        if (user.headscale_user_id === headscaleUserId) {
+        if (user.headscale_user_id === headscaleUserId && !(await auth.deleteUser(user.id))) {
           await auth.unlinkHeadscaleUser(user.id);
         }
       }

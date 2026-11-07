@@ -294,8 +294,9 @@ oidc:
   manage_url: "https://auth.example.com/admin/users"
 ```
 
-A Headplane user that is not linked to a Headscale user can be deleted from
-its menu. This removes only the Headplane user and signs it out; the account at
+Deleting a Headscale user also deletes the Headplane user linked to it,
+except the owner, who is only unlinked. A Headplane user that is not linked to
+a Headscale user can be deleted from its menu. This removes only the Headplane user and signs it out; the account at
 the identity provider stays.
 
 ### API Key Sessions
