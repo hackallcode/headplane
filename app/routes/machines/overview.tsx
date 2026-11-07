@@ -308,7 +308,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         </span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-160 table-auto rounded-lg">
+        <table className="w-full table-auto rounded-lg sm:min-w-160">
           <thead className="text-mist-600 dark:text-mist-300">
             <tr className="px-0.5 text-left">
               <th
@@ -347,7 +347,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                       : "descending"
                     : "none"
                 }
-                className="w-1/4 pb-2"
+                className="w-1/4 pb-2 max-sm:hidden"
               >
                 <div className="flex items-center gap-x-1">
                   <button
@@ -395,7 +395,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                         : "descending"
                       : "none"
                   }
-                  className="pb-2 text-xs font-bold uppercase"
+                  className="pb-2 text-xs font-bold uppercase max-sm:hidden"
                 >
                   <button
                     aria-label="Sort by version"
@@ -424,7 +424,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
                       : "descending"
                     : "none"
                 }
-                className="pb-2 text-xs font-bold uppercase"
+                className="pb-2 text-xs font-bold uppercase max-sm:hidden"
               >
                 <button
                   aria-label="Sort by last seen"
