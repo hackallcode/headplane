@@ -161,6 +161,11 @@ Once a link is established, it's stored as a `headscale_user_id` in Headplane's
 database and reused on subsequent logins — so the matching only needs to succeed
 once.
 
+Headscale creates an OIDC user only when it registers that user's first device,
+which may happen after the user signed in to Headplane. Until a link exists,
+Headplane retries the match on each page load, so the device shows up without
+signing in again.
+
 ### Headscale Without OIDC
 
 If your Headscale instance uses **local users** (created via
@@ -269,6 +274,30 @@ Headplane role, their Headplane permissions are updated at their next sign-in.
 `default_role` remains a creation-time fallback only and does not overwrite
 existing roles. The **Owner** role is reserved for the first-login bootstrap and
 cannot be granted or overwritten by `default_role` or `role_claim`.
+
+### Who May Sign In
+
+Headplane follows Headscale's `oidc.allowed_groups`: when it is set, only users
+whose `groups` claim contains one of those groups can sign in to Headplane, the
+same ones that may join the tailnet. Others see an access error and no
+Headplane user is created for them. Without `allowed_groups` anyone the
+provider authenticates can sign in.
+
+### Users Page
+
+The Users page links to the identity provider for managing users. It points to
+the issuer by default; set `oidc.manage_url` to send admins to the provider's
+user management page instead:
+
+```yaml
+oidc:
+  manage_url: "https://auth.example.com/admin/users"
+```
+
+Deleting a Headscale user also deletes the Headplane user linked to it,
+except the owner, who is only unlinked. A Headplane user that is not linked to
+a Headscale user can be deleted from its menu. This removes only the Headplane user and signs it out; the account at
+the identity provider stays.
 
 ### API Key Sessions
 

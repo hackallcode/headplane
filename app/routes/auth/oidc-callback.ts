@@ -4,12 +4,13 @@ import {
   appConfigContext,
   authContext,
   headscaleApiKeyContext,
+  headscaleConfigContext,
   headscaleContext,
   oidcContext,
 } from "~/server/context";
 import { headscaleErrorMessage } from "~/server/headscale/api/error-client";
 import { logOidcError } from "~/server/oidc/provider";
-import { findHeadscaleUserBySubject } from "~/server/web/headscale-identity";
+import { allowedByGroups, findHeadscaleUserBySubject } from "~/server/web/headscale-identity";
 import { Roles } from "~/server/web/roles";
 import log from "~/utils/log";
 import { createOidcStateCookie } from "~/utils/oidc-state";
@@ -61,6 +62,12 @@ export async function loader({ request, context, url }: Route.LoaderArgs) {
   }
 
   const identity = result.value;
+  const allowedGroups = context.get(headscaleConfigContext).getOIDCConfig()?.allowedGroups ?? [];
+  if (!allowedByGroups(identity.groups, allowedGroups)) {
+    log.warn("auth", "Refused %s: not in any of %s", identity.subject, allowedGroups.join(", "));
+    return redirect("/login?s=error_not_allowed");
+  }
+
   const claimedRole =
     identity.role && identity.role !== "owner" && identity.role in Roles
       ? identity.role

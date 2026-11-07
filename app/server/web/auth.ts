@@ -95,6 +95,7 @@ export interface AuthService {
 
   linkHeadscaleUser(userId: string, headscaleUserId: string): Promise<boolean>;
   unlinkHeadscaleUser(userId: string): Promise<void>;
+  deleteUser(userId: string): Promise<boolean>;
   listUsers(): Promise<HeadplaneUser[]>;
   claimedHeadscaleUserIds(): Promise<Set<string>>;
   roleForSubject(subject: string): Promise<Role | undefined>;
@@ -629,6 +630,7 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
       picture: profile?.picture,
       role: initialRole,
       caps: capsForRole(initialRole),
+      last_login_at: new Date(),
     });
 
     if (options?.bootstrapOwner === false) {
@@ -679,6 +681,17 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
       .update(users)
       .set({ headscale_user_id: null, updated_at: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  async function deleteUser(userId: string): Promise<boolean> {
+    const [user] = await opts.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || user.role === "owner") {
+      return false;
+    }
+
+    await opts.db.delete(authSessions).where(eq(authSessions.user_id, userId));
+    await opts.db.delete(users).where(eq(users.id, userId));
+    return true;
   }
 
   async function listUsers(): Promise<HeadplaneUser[]> {
@@ -804,6 +817,7 @@ export function createAuthService(opts: AuthServiceOptions): AuthService {
     findOrCreateUser,
     linkHeadscaleUser,
     unlinkHeadscaleUser,
+    deleteUser,
     listUsers,
     claimedHeadscaleUserIds,
     roleForSubject,

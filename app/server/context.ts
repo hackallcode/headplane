@@ -13,7 +13,8 @@ import { loadHeadscaleConfig } from "./headscale/config-loader";
 import { createLiveStore, nodesResource, usersResource } from "./headscale/live-store";
 import { type AgentManager, createAgentManager } from "./hp-agent";
 import { createOidcService, type OidcService } from "./oidc/provider";
-import { createAuthService, type Principal } from "./web/auth";
+import { createAuthService, isUserPrincipal, type Principal } from "./web/auth";
+import { linkOwnHeadscaleUser } from "./web/headscale-identity";
 
 export type AppContext = Awaited<ReturnType<typeof createAppContext>>;
 export const agentsContext = createContext<AppContext["agents"]>();
@@ -93,8 +94,15 @@ export async function createAppContext(config: HeadplaneConfig) {
     request: Request,
   ): Promise<{ principal: Principal; api: HeadscaleClient }> {
     const principal = await auth.require(request);
-    const apiKey = auth.getHeadscaleApiKey(principal);
-    return { principal, api: headscale.client(apiKey) };
+    const api = headscale.client(auth.getHeadscaleApiKey(principal));
+    if (isUserPrincipal(principal)) {
+      try {
+        await linkOwnHeadscaleUser(auth, principal, () => api.users.list());
+      } catch (error) {
+        log.debug("auth", "Could not link the Headscale user: %s", String(error));
+      }
+    }
+    return { principal, api };
   }
 
   function startServices() {

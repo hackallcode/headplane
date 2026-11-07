@@ -72,6 +72,12 @@ describe("findOrCreateUser", () => {
     expect(id1).toBe(id2);
   });
 
+  test("records the first login", async () => {
+    const id = await auth.findOrCreateUser("sub-1");
+    const user = (await auth.listUsers()).find((u) => u.id === id);
+    expect(user?.last_login_at).toBeInstanceOf(Date);
+  });
+
   test("updates name and email on re-login", async () => {
     await auth.findOrCreateUser("sub-1", { name: "Old", email: "old@test.com" });
     await auth.findOrCreateUser("sub-1", { name: "New", email: "new@test.com" });
@@ -142,6 +148,29 @@ describe("linkHeadscaleUser", () => {
     const users = await auth.listUsers();
     const user = users.find((u) => u.id === userId);
     expect(user?.headscale_user_id).toBeNull();
+  });
+});
+
+describe("deleteUser", () => {
+  test("removes the user and signs them out", async () => {
+    const { auth } = createTestAuth();
+    await auth.findOrCreateUser("sub-owner");
+    const id = await auth.findOrCreateUser("sub-guest", { name: "Guest" });
+    const cookie = await auth.createOidcSession(id, { name: "Guest" });
+    const request = new Request("http://localhost/", { headers: { Cookie: cookie.split(";")[0] } });
+
+    expect(await auth.deleteUser(id)).toBe(true);
+
+    expect((await auth.listUsers()).map((u) => u.sub)).toEqual(["sub-owner"]);
+    await expect(auth.require(request)).rejects.toBeDefined();
+  });
+
+  test("keeps the owner", async () => {
+    const { auth } = createTestAuth();
+    const owner = await auth.findOrCreateUser("sub-owner");
+
+    expect(await auth.deleteUser(owner)).toBe(false);
+    expect(await auth.listUsers()).toHaveLength(1);
   });
 });
 
