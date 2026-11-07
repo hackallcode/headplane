@@ -72,6 +72,20 @@ export async function userAction({ request, context }: Route.ActionArgs) {
       await headscaleLiveStore.refresh(usersResource, api);
       return { message: "User deleted successfully" };
     }
+    case "delete_panel_user": {
+      const headplaneUserId = formData.get("headplane_user_id")?.toString();
+      if (!headplaneUserId) {
+        throw data("Missing `headplane_user_id` in the form data.", { status: 400 });
+      }
+      if (isUserPrincipal(principal) && principal.user.id === headplaneUserId) {
+        throw data("You cannot delete yourself.", { status: 400 });
+      }
+      if (!(await auth.deleteUser(headplaneUserId))) {
+        throw data("This user cannot be deleted.", { status: 400 });
+      }
+
+      return { message: "User deleted successfully" };
+    }
     case "rename_user": {
       const headscaleUserId = formData.get("headscale_user_id")?.toString();
       const newName = formData.get("new_name")?.toString();

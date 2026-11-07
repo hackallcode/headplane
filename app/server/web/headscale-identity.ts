@@ -38,3 +38,7 @@ export function findHeadscaleUserBySubject(
 
   return users.find((u) => u.email === email);
 }
+
+export function allowedByGroups(groups: string[], allowed: string[]): boolean {
+  return allowed.length === 0 || groups.some((g) => allowed.includes(g));
+}

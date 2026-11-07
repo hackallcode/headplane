@@ -177,7 +177,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     policyHasComments,
     currentUserId: isUserPrincipal(principal) ? principal.user.id : undefined,
     isOwner,
-    oidc: config.oidc ? { issuer: config.oidc.issuer } : undefined,
+    oidc: config.oidc ? { manageUrl: config.oidc.manage_url ?? config.oidc.issuer } : undefined,
     magic,
     apiError,
     headplaneUsers,

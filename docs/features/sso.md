@@ -270,6 +270,29 @@ Headplane role, their Headplane permissions are updated at their next sign-in.
 existing roles. The **Owner** role is reserved for the first-login bootstrap and
 cannot be granted or overwritten by `default_role` or `role_claim`.
 
+### Who May Sign In
+
+Headplane follows Headscale's `oidc.allowed_groups`: when it is set, only users
+whose `groups` claim contains one of those groups can sign in to Headplane, the
+same ones that may join the tailnet. Others see an access error and no
+Headplane user is created for them. Without `allowed_groups` anyone the
+provider authenticates can sign in.
+
+### Users Page
+
+The Users page links to the identity provider for managing users. It points to
+the issuer by default; set `oidc.manage_url` to send admins to the provider's
+user management page instead:
+
+```yaml
+oidc:
+  manage_url: "https://auth.example.com/admin/users"
+```
+
+A Headplane user that is not linked to a Headscale user can be deleted from
+its menu. This removes only the Headplane user and signs it out; the account at
+the identity provider stays.
+
 ### API Key Sessions
 
 Users who sign in with a Headscale API key (instead of OIDC) are treated as

@@ -7,7 +7,9 @@ export function OidcErrorNotice({ code }: { code: string }) {
   return (
     <Card className="m-4 mb-4 max-w-md border border-red-500 sm:m-0 sm:mb-4">
       <div className="flex items-center justify-between gap-4">
-        <Card.Title className="text-red-500">Configuration Issue(s)</Card.Title>
+        <Card.Title className="text-red-500">
+          {code === "error_not_allowed" ? "No access" : "Configuration Issue(s)"}
+        </Card.Title>
         <AlertCircle className="mb-2 h-6 w-6 text-red-500" />
       </div>
       {getErrorMessage(code)}
@@ -47,6 +49,13 @@ function getErrorMessage(code: string) {
         <Card.Text>
           Authentication with the SSO provider failed. Please try again later. Headplane logs may
           provide more information.
+        </Card.Text>
+      );
+
+    case "error_not_allowed":
+      return (
+        <Card.Text>
+          Your account is not in a group that may use this network. Ask an administrator for access.
         </Card.Text>
       );
 

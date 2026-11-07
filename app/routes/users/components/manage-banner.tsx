@@ -6,7 +6,7 @@ import cn from "~/utils/cn";
 import CreateUser from "../dialogs/create-user";
 
 interface ManageBannerProps {
-  oidc?: { issuer: string };
+  oidc?: { manageUrl: string };
   isDisabled?: boolean;
 }
 
@@ -24,7 +24,7 @@ export default function ManageBanner({ oidc, isDisabled }: ManageBannerProps) {
           {oidc ? (
             <>
               Users are managed through your{" "}
-              <Link external styled to={oidc.issuer}>
+              <Link external styled to={oidc.manageUrl}>
                 OIDC provider
               </Link>
               .
