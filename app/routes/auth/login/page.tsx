@@ -7,6 +7,7 @@ import Card from "~/components/card";
 import Code from "~/components/code";
 import Input from "~/components/input";
 import Link from "~/components/link";
+import HcLockup from "~/layout/hc-lockup";
 import { appConfigContext, authContext, oidcContext } from "~/server/context";
 import type { OidcError, OidcService } from "~/server/oidc/provider";
 import { useLiveData } from "~/utils/live-data";
@@ -118,6 +119,9 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
   return (
     <div className="flex min-h-dvh w-full items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <div className="mb-6">
+          <HcLockup />
+        </div>
         {urlState?.startsWith("error_") ? (
           <OidcErrorNotice code={urlState} />
         ) : oidcErrorCodes.includes("discovery_failed") ? (
@@ -146,7 +150,7 @@ export default function Page({ loaderData, actionData }: Route.ComponentProps) {
           </Card>
         ) : undefined}
         <Card className="w-full">
-          <Card.Title>Welcome to Headplane</Card.Title>
+          <Card.Title>Sign in to Mesh</Card.Title>
           {isOidcConnectorEnabled ? (
             <>
               <Card.Text>Sign in with your account.</Card.Text>

@@ -16,11 +16,10 @@ import { NavLink, unstable_useRoute as useRoute, useLocation, useSubmit } from "
 
 import Link from "~/components/link";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "~/components/menu";
-import logoBg from "~/logo/dark-bg.svg";
-import logoDark from "~/logo/dark.svg";
-import logoLight from "~/logo/light.svg";
 import cn from "~/utils/cn";
 import type { ColorScheme } from "~/utils/color-scheme";
+
+import HcLockup from "./hc-lockup";
 
 export interface HeaderProps {
   user: {
@@ -73,22 +72,10 @@ export default function Header({ user, access, configAvailable }: HeaderProps) {
   const returnTo = location.pathname + location.search;
 
   return (
-    <header
-      className={cn(
-        "bg-mist-200 dark:bg-mist-950 text-mist-800 dark:text-mist-200",
-        "dark:border-b dark:border-mist-800 shadow-inner",
-      )}
-    >
+    <header className="border-b border-mist-200 text-mist-800 dark:border-mist-800 dark:text-mist-200">
       <div className="container flex items-center gap-x-4 py-4">
         <div className="flex min-w-0 items-center gap-x-4">
-          <div className="flex items-center gap-x-2">
-            <picture className="min-w-8">
-              <source srcSet={logoLight} media="(prefers-color-scheme: dark)" />
-              <source srcSet={logoDark} media="(prefers-color-scheme: light)" />
-              <img src={logoBg} alt="Headplane logo" />
-            </picture>
-            <h1 className="text-2xl font-semibold">headplane</h1>
-          </div>
+          <HcLockup />
           {showTabs && (
             <nav className="hidden items-center gap-x-2 overflow-x-auto p-1 text-sm font-medium md:flex">
               {tabs.map((tab) => {

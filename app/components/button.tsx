@@ -19,7 +19,7 @@ export default function Button({ variant = "light", className, ...props }: Butto
         props.disabled && "pointer-events-none opacity-50",
         ...(variant === "heavy"
           ? [
-              "bg-indigo-500 font-semibold text-white",
+              "bg-indigo-500 font-semibold text-white dark:text-mist-950",
               "hover:bg-indigo-500/90",
               "dark:bg-indigo-500/90 dark:hover:bg-indigo-500/80",
             ]

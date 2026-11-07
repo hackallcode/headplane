@@ -19,7 +19,7 @@ import "./tailwind.css";
 import { getColorScheme } from "./utils/color-scheme";
 
 export const meta: MetaFunction = () => [
-  { title: "Headplane" },
+  { title: "Mesh · hack[*]code" },
   {
     name: "description",
     content: "A frontend for the headscale coordination server",
@@ -54,7 +54,7 @@ export function Layout({ children }: { readonly children: React.ReactNode }) {
           <meta content="width=device-width, initial-scale=1" name="viewport" />
           <Meta />
           <Links />
-          <link href={`${__PREFIX__}/favicon.ico`} rel="icon" />
+          <link href={`${__PREFIX__}/favicon.svg`} rel="icon" type="image/svg+xml" />
         </head>
         <body className="w-full overflow-x-hidden overscroll-none dark:bg-mist-900 dark:text-mist-50">
           {children}

@@ -14,7 +14,7 @@ function Card({ variant = "raised", ...props }: Props) {
       {...props}
       className={cn(
         "w-full max-w-md rounded-lg p-5",
-        "bg-mist-50/50 dark:bg-mist-950/50",
+        "bg-white dark:bg-mist-900",
         variant === "flat" ? "shadow-none" : "shadow",
         "border border-mist-200 dark:border-mist-800",
         props.className,
