@@ -29,6 +29,7 @@ export default [
     route("/users", "routes/users/overview.tsx"),
     route("/acls", "routes/acls/overview.tsx"),
     route("/dns", "routes/dns/overview.tsx"),
+    route("/failover", "routes/failover/overview.tsx"),
 
     ...prefix("/settings", [
       index("routes/settings/overview.tsx"),

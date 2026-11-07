@@ -12,6 +12,7 @@ export const pathSupportedKeys = [
   "headscale.api_key",
   "oidc.client_secret",
   "oidc.headscale_api_key",
+  "failover.token",
 ] as const;
 
 function normalizeStringArray(values: string[]): string[] {
@@ -237,12 +238,27 @@ export const partialIntegrationConfig = type({
   agent: partialAgentConfig.optional(),
 }).partial();
 
+const failoverServer = type({ name: "string", url: "string.url" });
+
+const failoverConfig = type({
+  token: "string",
+  servers: failoverServer.array(),
+  witness: "string?",
+});
+
+const partialFailoverConfig = type({
+  token: "string?",
+  servers: failoverServer.array().optional(),
+  witness: "string?",
+});
+
 export const headplaneConfig = type({
   debug: "boolean = false",
   server: serverConfig,
   headscale: headscaleConfig,
   oidc: oidcConfig.optional(),
   integration: integrationConfig.optional(),
+  failover: failoverConfig.optional(),
 }).onDeepUndeclaredKey("delete");
 
 export const partialHeadplaneConfig = type({
@@ -251,6 +267,7 @@ export const partialHeadplaneConfig = type({
   headscale: partialHeadscaleConfig.optional(),
   oidc: partialOidcConfig.optional(),
   integration: partialIntegrationConfig.optional(),
+  failover: partialFailoverConfig.optional(),
 });
 
 export type HeadplaneConfig = typeof headplaneConfig.infer;

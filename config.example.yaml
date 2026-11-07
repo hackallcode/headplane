@@ -318,3 +318,14 @@ integration:
 #   # of custom hinting.
 #   extra_params:
 #     prompt: "select_account" # Example: force account selection on Google
+
+# Failover page for a headscale pair run by hacode.infra's headscale_failover role: each server's API is listed,
+# the page shows their state and asks one of them to take over. Shown to roles with network access.
+# failover:
+#   token: "<api token>"   # or token_path
+#   servers:
+#     - name: "RU"
+#       url: "http://100.64.0.110:8480"
+#     - name: "NL"
+#       url: "http://100.64.0.120:8480"
+#   witness: "berry-5"   # shown name of the host that votes
