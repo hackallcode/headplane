@@ -1,3 +1,4 @@
+import React from "react";
 import { data, useActionData } from "react-router";
 
 import Button from "~/components/button";
@@ -70,10 +71,23 @@ function Badge({ text, tone }: { text: string; tone: keyof typeof BADGE }) {
 }
 
 function ago(now: number, at?: number) {
-  return at ? `${Math.max(0, Math.round(now - at))} s ago` : "never";
+  if (!at) {
+    return "never";
+  }
+  const s = Math.max(0, Math.round(now - at));
+  if (s < 60) {
+    return `${s} s ago`;
+  }
+  if (s < 3600) {
+    return `${Math.floor(s / 60)} min ago`;
+  }
+  if (s < 86400) {
+    return `${Math.floor(s / 3600)} h ago`;
+  }
+  return `${Math.floor(s / 86400)} d ago`;
 }
 
-function Fact({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
+function Fact({ label, value, bad }: { label: string; value: React.ReactNode; bad?: boolean }) {
   return (
     <Text>
       <span className="font-medium">{label}: </span>
@@ -201,18 +215,26 @@ function EtcdCard({ summary, now }: { summary: FailoverSummary; now: number }) {
         <Chip text={summary.term ? `term ${summary.term}` : "no term"} />
       </div>
       <div className="flex flex-col gap-1">
-        {summary.members.length ? (
-          summary.members.map((member) => (
-            <div key={member.name} className="flex items-center gap-2">
-              <StatusCircle isOnline={member.ok !== false} className="h-3 w-3" />
-              <Text>{member.name}</Text>
-              {member.raft_leader ? <Chip text="raft leader" /> : undefined}
-              {member.ok === false ? <Badge text="not answering" tone="bad" /> : undefined}
-            </div>
-          ))
-        ) : (
-          <Fact label="Members" value="unknown" bad />
-        )}
+        <Fact
+          label="Members"
+          value={
+            summary.members.length ? (
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 align-middle">
+                {summary.members.map((member) => (
+                  <span key={member.name} className="inline-flex items-center gap-1">
+                    <StatusCircle isOnline={member.ok !== false} className="h-3 w-3" />
+                    {member.name}
+                    {member.raft_leader ? <Chip text="raft leader" /> : undefined}
+                    {member.ok === false ? <Badge text="not answering" tone="bad" /> : undefined}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              "unknown"
+            )
+          }
+          bad={!summary.members.length}
+        />
         <Fact
           label="Failover priority"
           value={summary.queue.map((name, i) => `${i + 1}. ${name}`).join(", ") || "nobody"}
