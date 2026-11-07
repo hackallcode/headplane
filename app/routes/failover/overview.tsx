@@ -87,12 +87,48 @@ function ago(now: number, at?: number) {
   return `${Math.floor(s / 86400)} d ago`;
 }
 
-function Fact({ label, value, bad }: { label: string; value: React.ReactNode; bad?: boolean }) {
+function Fact({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
   return (
     <Text>
       <span className="font-medium">{label}: </span>
       <span className={bad ? "text-red-600 dark:text-red-400" : undefined}>{value}</span>
     </Text>
+  );
+}
+
+interface FactListItem {
+  key: string;
+  marker: React.ReactNode;
+  text: string;
+  extra?: React.ReactNode;
+}
+
+function FactList({
+  label,
+  items,
+  empty,
+}: {
+  label: string;
+  items: FactListItem[];
+  empty: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Text className="font-medium">{label}</Text>
+      {items.length ? (
+        <ul className="flex flex-col gap-1">
+          {items.map((item) => (
+            <li key={item.key} className="flex items-center gap-2">
+              <span className="flex w-4 justify-center">{item.marker}</span>
+              <Text>{item.text}</Text>
+              {item.extra}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Text className="text-red-600 dark:text-red-400">{empty}</Text>
+      )}
+    </div>
   );
 }
 
@@ -214,31 +250,31 @@ function EtcdCard({ summary, now }: { summary: FailoverSummary; now: number }) {
         <Card.Title className="mb-0">etcd</Card.Title>
         <Chip text={summary.term ? `term ${summary.term}` : "no term"} />
       </div>
-      <div className="flex flex-col gap-1">
-        <Fact
+      <div className="flex flex-col gap-3">
+        <FactList
           label="Members"
-          value={
-            summary.members.length ? (
-              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 align-middle">
-                {summary.members.map((member) => (
-                  <span key={member.name} className="inline-flex items-center gap-1">
-                    <StatusCircle isOnline={member.ok !== false} className="h-3 w-3" />
-                    {member.name}
-                    {member.raft_leader ? <Chip text="raft leader" /> : undefined}
-                    {member.ok === false ? <Badge text="not answering" tone="bad" /> : undefined}
-                  </span>
-                ))}
-              </span>
-            ) : (
-              "unknown"
-            )
-          }
-          bad={!summary.members.length}
+          items={summary.members.map((member) => ({
+            key: member.name,
+            marker: <StatusCircle isOnline={member.ok !== false} className="h-3 w-3" />,
+            text: member.name,
+            extra: (
+              <>
+                {member.raft_leader ? <Chip text="raft leader" /> : undefined}
+                {member.ok === false ? <Badge text="not answering" tone="bad" /> : undefined}
+              </>
+            ),
+          }))}
+          empty="unknown"
         />
-        <Fact
+        <FactList
           label="Failover priority"
-          value={summary.queue.map((name, i) => `${i + 1}. ${name}`).join(", ") || "nobody"}
-          bad={summary.queue.length < 2}
+          items={summary.queue.map((name, i) => ({
+            key: name,
+            marker: <span className="text-sm text-mist-500">{i + 1}</span>,
+            text: name,
+            extra: summary.queue.length < 2 ? <Badge text="no standby" tone="bad" /> : undefined,
+          }))}
+          empty="nobody"
         />
         <Fact
           label="Database"
