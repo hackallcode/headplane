@@ -66,7 +66,7 @@ WORKDIR /app
 CMD [ "/app/build/server/index.js" ]
 
 FROM node:24-alpine AS debug-shell
-RUN apk add --no-cache bash curl
+RUN apk add --no-cache bash curl ca-certificates
 
 COPY --from=js-base /run/build /app/build
 COPY --from=js-base /run/drizzle /app/drizzle
