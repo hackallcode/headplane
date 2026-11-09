@@ -36,6 +36,7 @@
 - The **Rules** tab on the Access Control page can now edit grants and auto approvers. Grants set ports and protocols separately from the destination, can route traffic through tagged subnet routers or exit nodes with `via`, and keep app capabilities as written. Grants need Headscale 0.29 or newer. Auto approvers cover both subnet routes and exit nodes.
 - The Access Control file editor now formats HuJSON, preserves comments while formatting, and shows syntax errors before an invalid policy can be saved.
 - Deleting a Headscale user from the **Users** page now also deletes the Headplane account linked to it and signs it out, instead of leaving it unlinked. The owner is still only unlinked. Accounts with no Headscale user can be deleted from the menu on their row.
+- `oidc.manage_url` sets where the provider link on the **Users** page goes, for providers whose user management lives somewhere other than the issuer.
 
 ## Fixes
 
