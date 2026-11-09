@@ -37,6 +37,7 @@
 - The Access Control file editor now formats HuJSON, preserves comments while formatting, and shows syntax errors before an invalid policy can be saved.
 - Deleting a Headscale user from the **Users** page now also deletes the Headplane account linked to it and signs it out, instead of leaving it unlinked. The owner is still only unlinked. Accounts with no Headscale user can be deleted from the menu on their row.
 - `oidc.manage_url` sets where the provider link on the **Users** page goes, for providers whose user management lives somewhere other than the issuer.
+- Single sign-on now follows Headscale's `oidc.allowed_groups` when the provider sends a `groups` claim: people in none of those groups are refused at sign-in. Without the claim Headplane logs a warning and skips the check, so add `groups` to `oidc.scope` to enforce it.
 
 ## Fixes
 
